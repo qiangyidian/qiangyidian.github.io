@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>青色单词提取 (Mobile V10)</title>
+    <title>青色单词提取 (Mobile V11)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -22,53 +22,55 @@
         .h-dynamic { height: 100vh; height: 100dvh; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* 抽屉动画 */
         #result-drawer {
-            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
             transform: translateY(100%);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
         }
         #result-drawer.open { transform: translateY(0); }
 
-        /* 扫描线 */
         .scan-line {
             position: absolute; left: 0; right: 0; height: 2px;
             background: linear-gradient(to right, transparent, #06b6d4, transparent);
             animation: scan 2s infinite linear;
         }
-        @keyframes scan { 0% {top:0; opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%; opacity:0} }
+        @keyframes scan { 0% {top:10%; opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:90%; opacity:0} }
+
+        /* 优化按钮点击态 */
+        .btn-active:active { transform: scale(0.96); opacity: 0.9; }
     </style>
 </head>
 <body class="h-dynamic flex flex-col overflow-hidden text-slate-800 bg-slate-50">
 
     <!-- 顶部 -->
-    <header class="bg-white/95 backdrop-blur border-b border-slate-200 flex items-center justify-between px-4 z-10 shrink-0 sticky top-0 pt-[var(--sat)] pb-2">
+    <header class="bg-white/95 backdrop-blur border-b border-slate-200 flex items-center justify-between px-4 z-10 shrink-0 sticky top-0 pt-[var(--sat)] pb-2 transition-shadow shadow-sm">
         <div class="flex items-center gap-2 h-10">
-            <div class="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md">V10</div>
+            <div class="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md">V11</div>
             <div class="flex flex-col">
-                <h1 class="font-bold text-sm tracking-tight text-slate-800">顺序提取</h1>
-                <span class="text-[10px] text-slate-400">Strict Order Queue</span>
+                <h1 class="font-bold text-sm tracking-tight text-slate-800">自动排序版</h1>
+                <span class="text-[10px] text-slate-400">Auto Sort by Name</span>
             </div>
         </div>
         
-        <!-- 顶部工具栏：排序 -->
         <div class="flex gap-2">
-            <button onclick="sortQueueByName()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-xs font-medium text-slate-600 transition flex items-center gap-1">
-                <i class="fa-solid fa-arrow-down-a-z"></i> 名称排序
+            <!-- 手动全量排序按钮 -->
+            <button onclick="sortQueueByName()" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-medium text-slate-600 transition flex items-center gap-1 shadow-sm btn-active">
+                <i class="fa-solid fa-arrow-down-a-z text-cyan-500"></i> 整理顺序
             </button>
-            <div class="bg-cyan-50 px-3 py-1.5 rounded-full text-xs font-bold text-cyan-700 border border-cyan-100">
+            <div class="bg-slate-800 px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-md">
                 <span id="queue-count">0</span> 张
             </div>
         </div>
     </header>
 
     <!-- 主列表 -->
-    <main class="flex-1 overflow-y-auto no-scrollbar p-3 relative bg-slate-50" id="main-container">
+    <main class="flex-1 overflow-y-auto no-scrollbar p-3 relative bg-slate-100" id="main-container">
         <!-- 空状态 -->
         <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pb-20">
             <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100">
-                <i class="fa-solid fa-list-ol text-3xl text-slate-200"></i>
+                <i class="fa-solid fa-layer-group text-3xl text-slate-200"></i>
             </div>
-            <p class="text-xs font-medium text-slate-400">选择照片后将严格按顺序排列</p>
+            <p class="text-xs font-medium text-slate-400">选择照片后自动按文件名(1-9)排序</p>
         </div>
 
         <!-- 图片网格 -->
@@ -78,16 +80,16 @@
     <!-- 底部操作栏 -->
     <div class="shrink-0 bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+var(--sab))] z-20 shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)]">
         <div class="flex gap-3 h-12">
-            <button onclick="document.getElementById('file-input').click()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-500 active:bg-slate-100 transition">
+            <button onclick="document.getElementById('file-input').click()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-500 btn-active transition">
                 <i class="fa-regular fa-image text-xl"></i>
                 <input type="file" id="file-input" accept="image/*" multiple class="hidden" onchange="handleFiles(this.files)">
             </button>
             
-            <button onclick="openCamera()" class="aspect-square h-full bg-slate-800 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition">
+            <button onclick="openCamera()" class="aspect-square h-full bg-slate-800 text-white rounded-2xl flex items-center justify-center shadow-lg btn-active transition">
                 <i class="fa-solid fa-camera text-xl"></i>
             </button>
 
-            <button id="run-btn" onclick="runPipeline()" class="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-cyan-200 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
+            <button id="run-btn" onclick="runPipeline()" class="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-cyan-200 btn-active transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
                 <span>按序提取</span>
                 <i class="fa-solid fa-bolt"></i>
             </button>
@@ -98,7 +100,7 @@
     <div id="result-drawer" class="fixed inset-0 z-50 bg-white flex flex-col pt-[var(--sat)]">
         <div class="h-14 border-b border-slate-100 flex items-center justify-between px-4 bg-white shrink-0">
             <h2 class="font-bold text-slate-800 text-lg">识别结果</h2>
-            <button onclick="closeResult()" class="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-full text-slate-500 active:bg-slate-200">
+            <button onclick="closeResult()" class="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-full text-slate-500 btn-active transition">
                 <i class="fa-solid fa-chevron-down"></i>
             </button>
         </div>
@@ -116,8 +118,8 @@
         </div>
         
         <div class="p-4 border-t border-slate-100 bg-white pb-[calc(16px+var(--sab))] grid grid-cols-2 gap-4 shrink-0">
-            <button onclick="copyResult()" class="h-12 bg-slate-100 rounded-xl font-bold text-slate-700 text-sm active:bg-slate-200">复制全部</button>
-            <button onclick="downloadResult()" class="h-12 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-md active:bg-cyan-700">保存TXT</button>
+            <button onclick="copyResult()" class="h-12 bg-slate-100 rounded-xl font-bold text-slate-700 text-sm btn-active transition">复制全部</button>
+            <button onclick="downloadResult()" class="h-12 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-md btn-active transition">保存TXT</button>
         </div>
     </div>
 
@@ -129,12 +131,11 @@
                 <div class="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-xs font-medium border border-white/10">
                     已拍: <span id="cam-count" class="font-bold text-cyan-400">0</span>
                 </div>
-                <button onclick="closeCamera()" class="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white active:bg-white/20">
+                <button onclick="closeCamera()" class="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white btn-active transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             
-            <!-- 辅助线 -->
             <div class="flex-1 relative pointer-events-none">
                 <div class="scan-line opacity-60"></div>
                 <div class="absolute left-[12%] top-0 bottom-0 w-[15%] bg-cyan-400/5 border-l border-r border-cyan-400/30"></div>
@@ -147,13 +148,13 @@
             </div>
 
             <div class="pb-[calc(40px+var(--sab))] pt-12 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-center gap-12">
-                <button onclick="document.getElementById('file-input').click(); closeCamera()" class="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white active:bg-white/20">
+                <button onclick="document.getElementById('file-input').click(); closeCamera()" class="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white btn-active transition">
                     <i class="fa-regular fa-image"></i>
                 </button>
-                <button onclick="takePhoto()" class="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center relative active:scale-95 transition-transform touch-manipulation">
+                <button onclick="takePhoto()" class="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center relative btn-active transition-transform touch-manipulation">
                     <div class="w-16 h-16 bg-white rounded-full"></div>
                 </button>
-                <button onclick="closeCamera()" class="w-12 h-12 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs shadow-lg active:scale-95">
+                <button onclick="closeCamera()" class="w-12 h-12 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs shadow-lg btn-active transition">
                     OK
                 </button>
             </div>
@@ -180,21 +181,24 @@
             flash: document.getElementById('cam-flash')
         };
 
-        // --- 1. 严格顺序加载核心 ---
+        // --- 核心优化：上传即排序 ---
         
         async function handleFiles(files) {
-            // 1. 转为数组
-            const fileList = Array.from(files);
+            let fileList = Array.from(files);
             
-            // 2. 创建 Promise 队列，严格保持 fileList 的顺序
-            // 浏览器通常会按用户选择的顺序（或文件系统顺序）提供 fileList
-            // Promise.all 会等待所有读取完成，并返回一个与输入顺序完全一致的数组
+            // 步骤 1: 立即对文件对象按名称进行自然排序
+            // 这确保了即使系统传来的顺序是乱的，我们也先排好序
+            fileList.sort((a, b) => {
+                return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+            });
+
+            // 步骤 2: 按已排好的顺序读取文件
             const promises = fileList.map(file => {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = e => resolve({
                         src: e.target.result,
-                        name: file.name // 关键：保存文件名，用于排序和显示
+                        name: file.name
                     });
                     reader.readAsDataURL(file);
                 });
@@ -202,25 +206,21 @@
 
             const results = await Promise.all(promises);
             
-            // 3. 按顺序推入队列
-            results.forEach(item => {
-                state.queue.push(item);
-            });
+            // 步骤 3: 顺序插入队列
+            results.forEach(item => state.queue.push(item));
             
+            // 渲染并清空输入
             renderUI();
             document.getElementById('file-input').value = '';
         }
 
-        // --- 2. 辅助功能：按文件名排序 ---
-        // 如果系统相册给的顺序是乱的，用户可以点这个按钮一键修复
+        // --- 辅助功能：手动全量排序 ---
         function sortQueueByName() {
             if (state.queue.length === 0) return;
             state.queue.sort((a, b) => {
                 return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
             });
             renderUI();
-            // 简单的视觉反馈
-            alert("已按文件名重新排序");
         }
 
         function renderUI() {
@@ -238,24 +238,28 @@
             state.queue.forEach((img, i) => {
                 const div = document.createElement('div');
                 div.className = "relative aspect-[3/4] bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 group";
-                // 截取文件名，不显示太长
-                const shortName = img.name ? (img.name.length > 10 ? '...'+img.name.slice(-10) : img.name) : `Photo ${i+1}`;
                 
+                // 智能截断文件名
+                const nameParts = img.name.split('.');
+                const ext = nameParts.pop();
+                const base = nameParts.join('.');
+                const displayName = base.length > 8 ? base.slice(0, 5) + '..' + base.slice(-2) : base;
+
                 div.innerHTML = `
                     <img src="${img.src}" class="w-full h-full object-cover">
                     
-                    <!-- 序号标签 -->
-                    <div class="absolute top-2 left-2 w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md z-10 border border-white">
+                    <!-- 序号 (带背景) -->
+                    <div class="absolute top-2 left-2 w-7 h-7 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md z-10 border-2 border-white">
                         ${i+1}
                     </div>
 
-                    <!-- 文件名显示 (底部) -->
-                    <div class="absolute bottom-0 left-0 w-full bg-slate-900/70 backdrop-blur-sm px-2 py-1">
-                        <p class="text-[9px] text-white/90 truncate text-center">${shortName}</p>
+                    <!-- 文件名条 (半透明) -->
+                    <div class="absolute bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur-sm py-1.5 flex justify-center items-center px-2">
+                        <span class="text-[10px] text-white/90 font-mono truncate max-w-full">${displayName}.${ext}</span>
                     </div>
 
-                    <!-- 删除按钮 -->
-                    <button onclick="removeImage(${i})" class="absolute top-2 right-2 w-6 h-6 bg-black/40 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition z-10 backdrop-blur">
+                    <!-- 删除 -->
+                    <button onclick="removeImage(${i})" class="absolute top-2 right-2 w-7 h-7 bg-black/40 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition z-10 backdrop-blur">
                         <i class="fa-solid fa-xmark text-xs"></i>
                     </button>
                 `;
@@ -263,8 +267,7 @@
             });
         }
 
-        // --- 3. 识别算法 V5 ---
-        
+        // --- 识别算法 V5 (稳定版) ---
         function cleanText(text) {
             text = text.trim();
             const cutoffChars = ['\'', '’', '[', '(', '【', '/'];
@@ -306,8 +309,6 @@
             return bestBin;
         }
 
-        // --- 4. 顺序识别执行 ---
-
         async function runPipeline() {
             if (state.queue.length === 0) return alert("请先添加图片");
             
@@ -326,10 +327,9 @@
                     });
                 }
 
-                // 严格的顺序循环
                 for (let i = 0; i < state.queue.length; i++) {
                     const item = state.queue[i];
-                    updateStatus(`正在提取第 ${i+1}/${state.queue.length} 页...`, (i/state.queue.length)*100);
+                    updateStatus(`提取中: ${item.name} (${i+1}/${state.queue.length})`, (i/state.queue.length)*100);
 
                     const { data: { words } } = await state.worker.recognize(item.src);
                     
@@ -366,9 +366,7 @@
                         if (pass && !pageResult.includes(text)) pageResult.push(text);
                     }
                     
-                    if (pageResult.length > 0) {
-                        finalOutput += pageResult.join('\n') + '\n';
-                    }
+                    if (pageResult.length > 0) finalOutput += pageResult.join('\n') + '\n';
                 }
 
                 dom.output.value = finalOutput || "未提取到内容";
@@ -382,7 +380,6 @@
         }
 
         // --- Helper ---
-        function addImage(item) { state.queue.push(item); renderUI(); } // item is {src, name}
         function removeImage(i) { state.queue.splice(i, 1); renderUI(); }
         function updateStatus(t, p) { dom.status.innerText = t; dom.prog.style.width = p + '%'; }
         function closeResult() { dom.drawer.classList.remove('open'); }
@@ -405,7 +402,8 @@
             if(vid.videoWidth) {
                 cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
                 cvs.getContext('2d').drawImage(vid,0,0);
-                addImage({src: cvs.toDataURL('image/jpeg', 0.85), name: `Photo_${Date.now()}.jpg`});
+                state.queue.push({src: cvs.toDataURL('image/jpeg', 0.85), name: `Photo_${Date.now()}.jpg`});
+                renderUI();
                 dom.flash.style.opacity=1; setTimeout(()=>dom.flash.style.opacity=0,100);
             }
         }
