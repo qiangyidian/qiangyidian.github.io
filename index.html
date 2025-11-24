@@ -3,194 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>青色单词提取 (Mobile)</title>
+    <title>青色单词提取 (Mobile V7)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
-        /* 移动端基础设置 */
+        /* 1. 基础重置与安全区域 */
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
+        }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             background-color: #f8fafc; 
             -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none; /* 防止下拉刷新干扰 */
+            overscroll-behavior: none;
         }
         
-        /* 隐藏滚动条 */
+        /* 2. 隐藏滚动条但保留功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* 结果页抽屉动画 */
+        /* 3. 抽屉动画 */
         #result-drawer {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
             transform: translateY(100%);
+            will-change: transform;
         }
-        #result-drawer.open {
-            transform: translateY(0);
+        #result-drawer.open { transform: translateY(0); }
+
+        /* 4. 相机辅助线动画 */
+        .scan-line {
+            position: absolute;
+            left: 0; right: 0; height: 2px;
+            background: linear-gradient(to right, transparent, #22d3ee, transparent);
+            animation: scan-move 3s linear infinite;
+        }
+        @keyframes scan-move {
+            0% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 90%; opacity: 0; }
         }
 
-        /* 脉冲动画 */
-        @keyframes pulse-ring {
-            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(6, 182, 212, 0); }
-            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
-        }
-        .animate-pulse-ring {
-            animation: pulse-ring 2s infinite;
-        }
+        /* 5. 解决 iOS 浏览器全屏高度跳动 */
+        .h-dvh { height: 100vh; height: 100dvh; }
     </style>
 </head>
-<body class="h-[100dvh] flex flex-col overflow-hidden text-slate-800 bg-slate-50">
+<body class="h-dvh flex flex-col overflow-hidden text-slate-800 bg-slate-50">
 
-    <!-- 1. 顶部导航栏 -->
-    <header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-10 shrink-0 shadow-sm">
+    <!-- 顶部导航栏 -->
+    <header class="h-14 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between px-4 z-10 shrink-0 sticky top-0 pt-[var(--sat)]">
         <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center text-white shadow-md shadow-cyan-100">
-                <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+            <div class="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center text-white shadow-md shadow-cyan-100">
+                <i class="fa-solid fa-camera-retro text-sm"></i>
             </div>
-            <h1 class="font-bold text-base tracking-tight text-slate-800">单词提取 V6</h1>
+            <h1 class="font-bold text-base tracking-tight text-slate-800">单词提取 V7</h1>
         </div>
         <div class="bg-slate-100 px-3 py-1 rounded-full text-xs font-medium text-slate-500 border border-slate-200">
-            待处理: <span id="queue-count" class="text-cyan-600 font-bold ml-1">0</span>
+            Queue: <span id="queue-count" class="text-cyan-600 font-bold ml-1">0</span>
         </div>
     </header>
 
-    <!-- 2. 主内容区 (图片列表) -->
-    <main class="flex-1 overflow-y-auto no-scrollbar p-4 relative" id="main-container">
+    <!-- 主内容区 -->
+    <main class="flex-1 overflow-y-auto no-scrollbar p-3 relative" id="main-container">
         <!-- 空状态 -->
         <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pb-20">
-            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <i class="fa-regular fa-images text-3xl text-slate-300"></i>
+            <div class="w-24 h-24 bg-slate-100/50 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                <i class="fa-solid fa-plus text-4xl text-slate-200"></i>
             </div>
-            <p class="text-sm font-medium">点击底部按钮添加图片</p>
-            <p class="text-xs mt-2 text-slate-400">支持相册与相机拍摄</p>
+            <p class="text-sm font-medium text-slate-400">点击下方相机开始</p>
         </div>
 
         <!-- 图片网格 -->
-        <div id="image-grid" class="grid grid-cols-2 gap-3 pb-24">
-            <!-- JS 动态插入 -->
-        </div>
+        <div id="image-grid" class="grid grid-cols-2 gap-3 pb-24"></div>
     </main>
 
-    <!-- 3. 底部固定操作栏 -->
-    <div class="shrink-0 bg-white border-t border-slate-200 px-4 py-3 pb-safe z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <!-- 底部固定操作栏 -->
+    <div class="shrink-0 bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+var(--sab))] z-20 shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)]">
         <div class="flex gap-3 h-12">
-            <!-- 左侧：添加按钮组 -->
-            <button onclick="document.getElementById('file-input').click()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 active:bg-slate-100 active:scale-95 transition">
-                <i class="fa-regular fa-image text-lg"></i>
+            <!-- 相册 -->
+            <button onclick="document.getElementById('file-input').click()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-500 active:bg-slate-100 active:scale-95 transition">
+                <i class="fa-regular fa-image text-xl"></i>
                 <input type="file" id="file-input" accept="image/*" multiple class="hidden" onchange="handleFiles(this.files)">
             </button>
             
-            <button onclick="openCamera()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 active:bg-slate-100 active:scale-95 transition">
-                <i class="fa-solid fa-camera text-lg"></i>
+            <!-- 相机 (高亮) -->
+            <button onclick="openCamera()" class="aspect-square h-full bg-slate-800 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition">
+                <i class="fa-solid fa-camera text-xl"></i>
             </button>
 
-            <!-- 右侧：主要行动按钮 -->
-            <button id="run-btn" onclick="runPipeline()" class="flex-1 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-200 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
-                <span>开始提取</span>
-                <i class="fa-solid fa-arrow-right"></i>
+            <!-- 开始提取 -->
+            <button id="run-btn" onclick="runPipeline()" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-2xl font-bold text-sm shadow-lg shadow-cyan-200 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
+                <span>智能提取</span>
+                <i class="fa-solid fa-bolt"></i>
             </button>
         </div>
     </div>
 
-    <!-- 4. 结果页抽屉 (Modal) -->
-    <div id="result-drawer" class="fixed inset-0 z-50 bg-white flex flex-col">
-        <!-- 抽屉头部 -->
-        <div class="h-14 border-b border-slate-100 flex items-center justify-between px-4 bg-slate-50">
-            <h2 class="font-bold text-slate-800">识别结果</h2>
-            <button onclick="closeResult()" class="w-8 h-8 flex items-center justify-center bg-white rounded-full border border-slate-200 text-slate-500 active:bg-slate-100">
-                <i class="fa-solid fa-xmark"></i>
+    <!-- 结果页抽屉 -->
+    <div id="result-drawer" class="fixed inset-0 z-50 bg-white flex flex-col pt-[var(--sat)]">
+        <div class="h-14 border-b border-slate-100 flex items-center justify-between px-4 bg-white">
+            <h2 class="font-bold text-slate-800 text-lg">识别结果</h2>
+            <button onclick="closeResult()" class="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full text-slate-500 active:bg-slate-200">
+                <i class="fa-solid fa-chevron-down"></i>
             </button>
         </div>
-
-        <!-- 文本内容 -->
-        <div class="flex-1 relative bg-white">
-            <textarea id="output-area" class="w-full h-full p-4 resize-none focus:outline-none font-mono text-base leading-relaxed text-slate-700" readonly placeholder="结果将显示在这里..."></textarea>
+        <div class="flex-1 relative bg-slate-50">
+            <textarea id="output-area" class="w-full h-full p-5 resize-none focus:outline-none font-mono text-base leading-relaxed text-slate-700 bg-transparent" readonly placeholder="分析中..."></textarea>
             
-            <!-- 加载中遮罩 -->
-            <div id="loading-mask" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center hidden">
-                <div class="w-16 h-16 relative">
-                    <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-                    <div class="absolute inset-0 border-4 border-cyan-500 rounded-full border-t-transparent animate-spin"></div>
-                </div>
-                <div id="status-text" class="mt-4 text-sm font-bold text-slate-600">正在初始化引擎...</div>
-                <div class="w-48 h-1 bg-slate-100 rounded-full mt-3 overflow-hidden">
+            <!-- 加载遮罩 -->
+            <div id="loading-mask" class="absolute inset-0 bg-white/95 backdrop-blur z-10 flex flex-col items-center justify-center">
+                <div class="w-16 h-16 border-4 border-slate-100 rounded-full border-t-cyan-500 animate-spin mb-4"></div>
+                <div id="status-text" class="text-sm font-bold text-slate-600 animate-pulse">正在唤醒 AI...</div>
+                <div class="w-48 h-1.5 bg-slate-100 rounded-full mt-4 overflow-hidden">
                     <div id="progress-bar" class="h-full bg-cyan-500 transition-all duration-300 w-0"></div>
                 </div>
             </div>
         </div>
-
-        <!-- 底部工具栏 -->
-        <div class="p-4 border-t border-slate-100 bg-slate-50 grid grid-cols-2 gap-3 pb-safe">
-            <button onclick="copyResult()" class="h-12 bg-white border border-slate-300 rounded-xl font-bold text-slate-700 text-sm shadow-sm active:bg-slate-50 flex items-center justify-center gap-2">
-                <i class="fa-regular fa-copy"></i> 复制文本
-            </button>
-            <button onclick="downloadResult()" class="h-12 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-2">
-                <i class="fa-solid fa-download"></i> 保存文件
-            </button>
+        <div class="p-4 border-t border-slate-100 bg-white pb-[calc(16px+var(--sab))] grid grid-cols-2 gap-4">
+            <button onclick="copyResult()" class="h-11 bg-slate-100 rounded-xl font-bold text-slate-700 text-sm active:bg-slate-200">复制</button>
+            <button onclick="downloadResult()" class="h-11 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-md active:bg-cyan-700">保存TXT</button>
         </div>
     </div>
 
-    <!-- 5. 全屏相机 (Mobile Optimized) -->
-    <div id="camera-modal" class="fixed inset-0 z-[100] bg-black hidden flex-col">
-        <!-- 顶部控制 -->
-        <div class="absolute top-0 left-0 w-full p-4 pt-safe z-20 flex justify-between text-white items-center">
-            <div class="bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-medium border border-white/10">
-                已拍: <span id="cam-count">0</span>
+    <!-- 全屏相机 (真正全屏适配) -->
+    <div id="camera-modal" class="fixed inset-0 z-[100] bg-black hidden flex-col h-dvh w-screen">
+        
+        <!-- 视频层 -->
+        <video id="cam-video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+
+        <!-- 1. 顶部控制栏 (避开刘海) -->
+        <div class="absolute top-0 left-0 w-full pt-[calc(16px+var(--sat))] px-4 flex justify-between z-30">
+            <div class="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full text-white text-xs border border-white/10 shadow-sm">
+                已拍: <span id="cam-count" class="font-bold text-cyan-400">0</span>
             </div>
-            <button onclick="closeCamera()" class="w-10 h-10 flex items-center justify-center bg-black/20 rounded-full backdrop-blur active:bg-white/20">
-                <i class="fa-solid fa-xmark text-xl"></i>
+            <button onclick="closeCamera()" class="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white active:bg-white/20 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
 
-        <!-- 视频流 -->
-        <video id="cam-video" autoplay playsinline class="flex-1 w-full h-full object-cover"></video>
+        <!-- 2. 核心辅助引导层 (UI优化) -->
+        <div class="absolute inset-0 pointer-events-none z-20">
+            <!-- 扫描线动画 -->
+            <div class="scan-line opacity-50"></div>
+            
+            <!-- 黄金对齐区 (半透明带) -->
+            <!-- 假设左侧 12% - 25% 是单词出现的最佳位置 -->
+            <div class="absolute left-[12%] w-[13%] top-0 bottom-0 bg-cyan-400/10 border-l border-r border-cyan-400/30"></div>
+            
+            <!-- 关键辅助线 -->
+            <div class="absolute left-[12%] top-0 bottom-0 w-[2px] bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]"></div>
 
-        <!-- 辅助线层 -->
-        <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <!-- 左侧 15% 处的强青色辅助线 -->
-            <div class="absolute left-[15%] top-0 bottom-0 w-[2px] bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] opacity-80"></div>
-            <!-- 文字提示 -->
-            <div class="absolute left-[17%] top-1/2 -translate-y-1/2 text-cyan-400 text-xs font-medium bg-black/50 px-2 py-1 rounded backdrop-blur -rotate-90 origin-left">
-                单词列对齐此线
+            <!-- 文字提示 (横向显示，更易读) -->
+            <div class="absolute left-[14%] top-[40%] bg-black/60 text-cyan-300 text-xs px-3 py-2 rounded-r-lg backdrop-blur-sm border-l-2 border-cyan-400 shadow-lg">
+                <div class="font-bold">单词对齐基准线</div>
+                <div class="text-[10px] text-white/80 mt-0.5">请将单词首字母对齐左侧蓝线</div>
             </div>
         </div>
 
-        <!-- 底部快门区 -->
-        <div class="h-32 bg-black/90 pb-safe flex items-center justify-center relative z-20">
-            <button onclick="takePhoto()" class="w-20 h-20 rounded-full border-[6px] border-white/30 flex items-center justify-center active:scale-90 transition duration-100">
+        <!-- 3. 底部快门区 (避开小黑条) -->
+        <div class="absolute bottom-0 left-0 w-full pb-[calc(32px+var(--sab))] pt-10 bg-gradient-to-t from-black/80 to-transparent z-30 flex items-center justify-center gap-10">
+             
+            <!-- 相册导入 (小) -->
+            <button onclick="document.getElementById('file-input').click(); closeCamera()" class="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white active:bg-white/20">
+                <i class="fa-regular fa-image"></i>
+            </button>
+
+            <!-- 快门 (大) -->
+            <button onclick="takePhoto()" class="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center relative active:scale-95 transition-transform">
                 <div class="w-16 h-16 bg-white rounded-full"></div>
             </button>
-            <!-- 确认按钮 (仅在拍过照后显示) -->
-            <button onclick="closeCamera()" class="absolute right-8 text-white text-sm font-bold bg-white/20 px-4 py-2 rounded-full active:bg-white/30">
-                完成
+
+            <!-- 完成 (小) -->
+            <button onclick="closeCamera()" class="w-12 h-12 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs shadow-lg active:scale-95">
+                OK
             </button>
         </div>
-        <canvas id="cam-canvas" class="hidden"></canvas>
+
+        <!-- 闪光层 -->
+        <div id="cam-flash" class="absolute inset-0 bg-white pointer-events-none opacity-0 transition-opacity duration-150 z-50"></div>
     </div>
 
-    <!-- 后台处理画布 -->
+    <!-- 隐藏画布 -->
+    <canvas id="cam-canvas" class="hidden"></canvas>
     <canvas id="proc-canvas" class="hidden"></canvas>
 
     <script>
-        // --- 状态管理 ---
+        // --- 状态与DOM ---
         const state = { queue: [], worker: null };
         const dom = {
             grid: document.getElementById('image-grid'),
             empty: document.getElementById('empty-state'),
             count: document.getElementById('queue-count'),
+            camCount: document.getElementById('cam-count'),
             drawer: document.getElementById('result-drawer'),
             mask: document.getElementById('loading-mask'),
             status: document.getElementById('status-text'),
             prog: document.getElementById('progress-bar'),
             output: document.getElementById('output-area'),
-            camModal: document.getElementById('camera-modal')
+            camModal: document.getElementById('camera-modal'),
+            flash: document.getElementById('cam-flash')
         };
 
-        // --- 核心算法 V5 (保持不变) ---
-        
-        // 1. 强力清洗
+        // --- 核心算法 V5 (稳定版) ---
         function cleanText(text) {
             text = text.trim();
             const cutoffChars = ['\'', '’', '[', '(', '【', '/'];
@@ -201,15 +218,14 @@
             return text.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '');
         }
 
-        // 2. 色彩差值 (G+B) - 2R
         function analyzeColorV5(ctx, bbox) {
             const w = bbox.x1 - bbox.x0, h = bbox.y1 - bbox.y0;
             if (w <= 0 || h <= 0) return 0;
             const data = ctx.getImageData(bbox.x0, bbox.y0, w, h).data;
             let totalScore = 0, pixels = 0;
-            for (let i = 0; i < data.length; i += 4) {
+            for (let i = 0; i < data.length; i += 8) { // 降采样优化性能
                 const r = data[i], g = data[i+1], b = data[i+2];
-                if ((r+g+b)/3 < 220) { // 墨水像素
+                if ((r+g+b)/3 < 220) {
                     const score = (g + b) - (2.0 * r);
                     if (score > 30) { totalScore += score; pixels++; }
                 }
@@ -217,7 +233,6 @@
             return pixels > 0 ? (totalScore / pixels) : 0;
         }
 
-        // 3. 直方图左边距
         function findLeftMarginMode(words) {
             if (words.length === 0) return 0;
             const binSize = 10, bins = {};
@@ -234,12 +249,10 @@
             return bestBin;
         }
 
-        // --- 主逻辑 ---
-
+        // --- 业务逻辑 ---
         async function runPipeline() {
             if (state.queue.length === 0) return alert("请先添加图片");
             
-            // 打开抽屉，显示加载
             dom.drawer.classList.add('open');
             dom.mask.classList.remove('hidden');
             dom.output.value = "";
@@ -247,7 +260,7 @@
 
             try {
                 if (!state.worker) {
-                    updateStatus("正在启动 AI 引擎...", 5);
+                    updateStatus("正在启动 AI...", 10);
                     state.worker = await Tesseract.createWorker('eng');
                     await state.worker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT,
@@ -257,21 +270,18 @@
 
                 for (let i = 0; i < state.queue.length; i++) {
                     const item = state.queue[i];
-                    updateStatus(`正在分析第 ${i+1}/${state.queue.length} 张图片...`, (i/state.queue.length)*100);
+                    updateStatus(`分析图片 ${i+1}/${state.queue.length}...`, (i/state.queue.length)*100);
 
-                    // OCR
                     const { data: { words } } = await state.worker.recognize(item.src);
                     
-                    // Canvas
                     const img = new Image(); img.src = item.src; await new Promise(r => img.onload = r);
                     const cvs = document.getElementById('proc-canvas');
                     const ctx = cvs.getContext('2d', { willReadFrequently: true });
                     cvs.width = img.width; cvs.height = img.height;
                     ctx.drawImage(img, 0, 0);
 
-                    // Analysis
                     const leftMode = findLeftMarginMode(words);
-                    const leftTolerance = 25; // 稍微放宽一点适应手机拍的不稳
+                    const leftTolerance = 30; // 手机端容错加大
                     const heights = words.map(w => w.bbox.y1 - w.bbox.y0).sort((a,b)=>a-b);
                     const medianH = heights[Math.floor(heights.length/2)] || 20;
 
@@ -299,25 +309,19 @@
                     if (pageResult.length > 0) finalOutput += pageResult.join('\n') + '\n';
                 }
 
-                dom.output.value = finalOutput || "未能提取到单词，请检查图片是否清晰或光线是否充足。";
-                updateStatus("处理完成", 100);
-                setTimeout(() => dom.mask.classList.add('hidden'), 500);
+                dom.output.value = finalOutput || "未提取到内容，请确保光线充足且对齐左侧蓝线。";
+                updateStatus("完成", 100);
+                setTimeout(() => dom.mask.classList.add('hidden'), 600);
 
             } catch(e) {
                 alert("出错: " + e.message);
-                dom.drawer.classList.remove('open'); // 关闭抽屉
+                closeResult();
             }
         }
 
-        // --- UI 操作 ---
-
-        function updateStatus(text, percent) {
+        function updateStatus(text, per) {
             dom.status.innerText = text;
-            dom.prog.style.width = percent + '%';
-        }
-
-        function closeResult() {
-            dom.drawer.classList.remove('open');
+            dom.prog.style.width = per + '%';
         }
 
         function handleFiles(files) {
@@ -331,12 +335,12 @@
 
         function addImage(src) {
             state.queue.push({ src });
-            renderGrid();
+            renderUI();
         }
 
-        function renderGrid() {
+        function renderUI() {
             dom.count.innerText = state.queue.length;
-            document.getElementById('cam-count').innerText = state.queue.length;
+            dom.camCount.innerText = state.queue.length;
             
             if (state.queue.length === 0) {
                 dom.grid.innerHTML = '';
@@ -351,11 +355,10 @@
                 div.className = "relative aspect-[3/4] bg-slate-200 rounded-xl overflow-hidden shadow-sm border border-slate-100";
                 div.innerHTML = `
                     <img src="${img.src}" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
-                    <div class="absolute bottom-2 left-2 text-white text-xs font-bold">#${i+1}</div>
-                    <button onclick="removeImage(${i})" class="absolute top-1 right-1 w-6 h-6 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur active:bg-red-500 transition">
-                        <i class="fa-solid fa-xmark text-xs"></i>
+                    <button onclick="removeImage(${i})" class="absolute top-1 right-1 w-7 h-7 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur active:bg-red-500 transition">
+                        <i class="fa-solid fa-xmark text-sm"></i>
                     </button>
+                    <div class="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded text-white text-[10px] font-bold backdrop-blur">#${i+1}</div>
                 `;
                 dom.grid.appendChild(div);
             });
@@ -363,37 +366,31 @@
 
         function removeImage(i) {
             state.queue.splice(i, 1);
-            renderGrid();
-        }
-
-        function copyResult() {
-            dom.output.select();
-            document.execCommand('copy'); // 兼容性更好
-            alert('已复制到剪贴板');
-        }
-        
-        function downloadResult() {
-            const blob = new Blob([dom.output.value], {type:'text/plain'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `words_${Date.now()}.txt`;
-            a.click();
+            renderUI();
         }
 
         // --- 相机逻辑 ---
         let stream;
         function openCamera() {
             dom.camModal.style.display = 'flex';
-            navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
-            }).then(s => {
-                stream = s;
-                document.getElementById('cam-video').srcObject = s;
-            }).catch(e => {
-                alert("相机启动失败，请确保使用HTTPS或本地环境");
-                closeCamera();
-            });
+            // 请求更高分辨率以提升OCR准确率
+            const constraints = { 
+                video: { 
+                    facingMode: 'environment', 
+                    width: { ideal: 1920 }, // 竖屏时宽是短边，高是长边
+                    height: { ideal: 1080 } 
+                } 
+            };
+            
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(s => {
+                    stream = s;
+                    document.getElementById('cam-video').srcObject = s;
+                })
+                .catch(e => {
+                    alert("相机启动失败: " + e.message);
+                    closeCamera();
+                });
         }
 
         function closeCamera() {
@@ -404,16 +401,32 @@
         function takePhoto() {
             const vid = document.getElementById('cam-video');
             const cvs = document.getElementById('cam-canvas');
-            cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
-            cvs.getContext('2d').drawImage(vid, 0, 0);
             
-            addImage(cvs.toDataURL('image/jpeg', 0.8));
-            
-            // 闪屏反馈
-            const flash = document.createElement('div');
-            flash.className = "fixed inset-0 bg-white z-[110] transition-opacity duration-200";
-            document.body.appendChild(flash);
-            setTimeout(() => { flash.style.opacity = 0; setTimeout(() => flash.remove(), 200); }, 50);
+            // 确保画布尺寸与视频实际尺寸一致
+            if (vid.videoWidth) {
+                cvs.width = vid.videoWidth;
+                cvs.height = vid.videoHeight;
+                cvs.getContext('2d').drawImage(vid, 0, 0);
+                
+                // 压缩图片质量以加快处理
+                addImage(cvs.toDataURL('image/jpeg', 0.85));
+                
+                // 闪光效果
+                dom.flash.style.opacity = 1;
+                setTimeout(() => dom.flash.style.opacity = 0, 100);
+            }
+        }
+
+        function closeResult() { dom.drawer.classList.remove('open'); }
+        function copyResult() { 
+            dom.output.select(); document.execCommand('copy'); 
+            alert('复制成功'); 
+        }
+        function downloadResult() {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([dom.output.value], {type:'text/plain'}));
+            a.download = `words_${Date.now()}.txt`;
+            a.click();
         }
     </script>
 </body>
