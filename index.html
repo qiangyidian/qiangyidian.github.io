@@ -2,234 +2,253 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>单词提取 V5 (色彩差值+直方图版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>青色单词提取 (Mobile)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #334155; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        /* 移动端基础设置 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f8fafc; 
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none; /* 防止下拉刷新干扰 */
+        }
         
-        .tag { font-size: 9px; padding: 1px 4px; border-radius: 4px; font-weight: 600; margin-left: 4px; }
-        .tag-cyan { background: #cffafe; color: #0891b2; border: 1px solid #22d3ee; }
-        .tag-pos { background: #f0fdf4; color: #166534; border: 1px solid #86efac; }
-        .tag-size { background: #fff7ed; color: #9a3412; border: 1px solid #fdba74; }
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        #camera-modal { position: fixed; inset: 0; background: black; z-index: 100; display: none; flex-direction: column; }
+        /* 结果页抽屉动画 */
+        #result-drawer {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(100%);
+        }
+        #result-drawer.open {
+            transform: translateY(0);
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(6, 182, 212, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="h-[100dvh] flex flex-col overflow-hidden text-slate-800 bg-slate-50">
 
-    <!-- 顶部 -->
-    <header class="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm z-10">
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-cyan-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-cyan-200">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
+    <!-- 1. 顶部导航栏 -->
+    <header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-10 shrink-0 shadow-sm">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center text-white shadow-md shadow-cyan-100">
+                <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
             </div>
-            <div>
-                <h1 class="text-sm font-bold text-slate-800">单词提取 V5</h1>
-                <p class="text-[10px] text-slate-500">RGB差值算法 + 直方图对齐</p>
-            </div>
+            <h1 class="font-bold text-base tracking-tight text-slate-800">单词提取 V6</h1>
         </div>
-        <div class="text-[10px] font-mono text-slate-400">Queue: <span id="queue-count" class="font-bold text-cyan-600">0</span></div>
+        <div class="bg-slate-100 px-3 py-1 rounded-full text-xs font-medium text-slate-500 border border-slate-200">
+            待处理: <span id="queue-count" class="text-cyan-600 font-bold ml-1">0</span>
+        </div>
     </header>
 
-    <!-- 主界面 -->
-    <main class="flex-1 flex overflow-hidden">
-        
-        <!-- 左侧控制区 -->
-        <div class="w-1/3 min-w-[280px] max-w-sm bg-white border-r border-slate-200 flex flex-col z-0">
-            <!-- 按钮 -->
-            <div class="p-3 grid grid-cols-2 gap-2 border-b border-slate-100">
-                <button onclick="document.getElementById('file-input').click()" class="btn-tool bg-slate-50 hover:bg-cyan-50 border border-slate-200 hover:border-cyan-200 text-slate-600 hover:text-cyan-700 rounded-lg p-3 flex flex-col items-center gap-1 transition">
-                    <i class="fa-solid fa-folder-open text-xl"></i>
-                    <span class="text-xs font-medium">相册</span>
-                    <input type="file" id="file-input" accept="image/*" multiple class="hidden" onchange="handleFiles(this.files)">
-                </button>
-                <button onclick="openCamera()" class="btn-tool bg-slate-50 hover:bg-cyan-50 border border-slate-200 hover:border-cyan-200 text-slate-600 hover:text-cyan-700 rounded-lg p-3 flex flex-col items-center gap-1 transition">
-                    <i class="fa-solid fa-camera text-xl"></i>
-                    <span class="text-xs font-medium">拍照</span>
-                </button>
+    <!-- 2. 主内容区 (图片列表) -->
+    <main class="flex-1 overflow-y-auto no-scrollbar p-4 relative" id="main-container">
+        <!-- 空状态 -->
+        <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pb-20">
+            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <i class="fa-regular fa-images text-3xl text-slate-300"></i>
             </div>
-
-            <!-- 列表 -->
-            <div id="image-list" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar bg-slate-50">
-                <div id="empty-hint" class="h-full flex flex-col items-center justify-center text-slate-300 opacity-60">
-                    <i class="fa-regular fa-image text-3xl mb-2"></i>
-                    <span class="text-xs">暂无图片</span>
-                </div>
-            </div>
-
-            <!-- 设置与执行 -->
-            <div class="p-3 bg-white border-t border-slate-200">
-                <div class="mb-3 px-1">
-                    <label class="flex items-center justify-between text-xs text-slate-500 cursor-pointer">
-                        <span>显示处理细节 (调试)</span>
-                        <input type="checkbox" id="debug-mode" class="accent-cyan-600">
-                    </label>
-                </div>
-                <button id="run-btn" onclick="runPipeline()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-cyan-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
-                    <i class="fa-solid fa-bolt"></i> 开始极速分析
-                </button>
-            </div>
+            <p class="text-sm font-medium">点击底部按钮添加图片</p>
+            <p class="text-xs mt-2 text-slate-400">支持相册与相机拍摄</p>
         </div>
 
-        <!-- 右侧结果区 -->
-        <div class="flex-1 flex flex-col bg-slate-100 relative">
-            
-            <div class="h-10 bg-white border-b border-slate-200 flex justify-between items-center px-4">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Result</span>
-                <div class="flex gap-2">
-                    <button onclick="copyResult()" class="text-xs px-2 py-1 hover:bg-slate-100 rounded text-slate-600 transition"><i class="fa-regular fa-copy"></i> 复制</button>
-                    <button onclick="downloadResult()" class="text-xs px-2 py-1 hover:bg-slate-100 rounded text-slate-600 transition"><i class="fa-solid fa-download"></i> TXT</button>
-                </div>
-            </div>
-
-            <div class="flex-1 relative">
-                <textarea id="output-area" class="w-full h-full p-6 resize-none focus:outline-none font-mono text-sm leading-relaxed bg-transparent text-slate-800" placeholder="等待分析..."></textarea>
-                
-                <!-- 加载遮罩 -->
-                <div id="processing-mask" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center hidden">
-                    <div class="w-10 h-10 border-4 border-slate-200 border-t-cyan-500 rounded-full animate-spin mb-3"></div>
-                    <div id="status-text" class="text-xs font-bold text-cyan-700">准备就绪</div>
-                    <div class="w-40 h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
-                        <div id="progress-bar" class="h-full bg-cyan-500 transition-all duration-300 w-0"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 调试日志 -->
-            <div id="debug-panel" class="h-1/3 bg-slate-900 text-slate-400 p-3 font-mono text-[10px] overflow-y-auto hidden border-t border-slate-800"></div>
+        <!-- 图片网格 -->
+        <div id="image-grid" class="grid grid-cols-2 gap-3 pb-24">
+            <!-- JS 动态插入 -->
         </div>
     </main>
 
-    <!-- 相机模态框 -->
-    <div id="camera-modal">
-        <video id="cam-video" autoplay playsinline class="flex-1 object-cover"></video>
-        <div class="absolute top-0 w-full p-4 flex justify-between text-white z-20">
-            <span class="bg-black/50 px-2 py-1 rounded text-xs backdrop-blur">队列: <span id="cam-count">0</span></span>
-            <button onclick="closeCamera()"><i class="fa-solid fa-xmark text-2xl drop-shadow"></i></button>
+    <!-- 3. 底部固定操作栏 -->
+    <div class="shrink-0 bg-white border-t border-slate-200 px-4 py-3 pb-safe z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div class="flex gap-3 h-12">
+            <!-- 左侧：添加按钮组 -->
+            <button onclick="document.getElementById('file-input').click()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 active:bg-slate-100 active:scale-95 transition">
+                <i class="fa-regular fa-image text-lg"></i>
+                <input type="file" id="file-input" accept="image/*" multiple class="hidden" onchange="handleFiles(this.files)">
+            </button>
+            
+            <button onclick="openCamera()" class="aspect-square h-full bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 active:bg-slate-100 active:scale-95 transition">
+                <i class="fa-solid fa-camera text-lg"></i>
+            </button>
+
+            <!-- 右侧：主要行动按钮 -->
+            <button id="run-btn" onclick="runPipeline()" class="flex-1 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-200 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
+                <span>开始提取</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
         </div>
-        <!-- 相机辅助线 -->
+    </div>
+
+    <!-- 4. 结果页抽屉 (Modal) -->
+    <div id="result-drawer" class="fixed inset-0 z-50 bg-white flex flex-col">
+        <!-- 抽屉头部 -->
+        <div class="h-14 border-b border-slate-100 flex items-center justify-between px-4 bg-slate-50">
+            <h2 class="font-bold text-slate-800">识别结果</h2>
+            <button onclick="closeResult()" class="w-8 h-8 flex items-center justify-center bg-white rounded-full border border-slate-200 text-slate-500 active:bg-slate-100">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- 文本内容 -->
+        <div class="flex-1 relative bg-white">
+            <textarea id="output-area" class="w-full h-full p-4 resize-none focus:outline-none font-mono text-base leading-relaxed text-slate-700" readonly placeholder="结果将显示在这里..."></textarea>
+            
+            <!-- 加载中遮罩 -->
+            <div id="loading-mask" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center hidden">
+                <div class="w-16 h-16 relative">
+                    <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-cyan-500 rounded-full border-t-transparent animate-spin"></div>
+                </div>
+                <div id="status-text" class="mt-4 text-sm font-bold text-slate-600">正在初始化引擎...</div>
+                <div class="w-48 h-1 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-cyan-500 transition-all duration-300 w-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部工具栏 -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50 grid grid-cols-2 gap-3 pb-safe">
+            <button onclick="copyResult()" class="h-12 bg-white border border-slate-300 rounded-xl font-bold text-slate-700 text-sm shadow-sm active:bg-slate-50 flex items-center justify-center gap-2">
+                <i class="fa-regular fa-copy"></i> 复制文本
+            </button>
+            <button onclick="downloadResult()" class="h-12 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-2">
+                <i class="fa-solid fa-download"></i> 保存文件
+            </button>
+        </div>
+    </div>
+
+    <!-- 5. 全屏相机 (Mobile Optimized) -->
+    <div id="camera-modal" class="fixed inset-0 z-[100] bg-black hidden flex-col">
+        <!-- 顶部控制 -->
+        <div class="absolute top-0 left-0 w-full p-4 pt-safe z-20 flex justify-between text-white items-center">
+            <div class="bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-medium border border-white/10">
+                已拍: <span id="cam-count">0</span>
+            </div>
+            <button onclick="closeCamera()" class="w-10 h-10 flex items-center justify-center bg-black/20 rounded-full backdrop-blur active:bg-white/20">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- 视频流 -->
+        <video id="cam-video" autoplay playsinline class="flex-1 w-full h-full object-cover"></video>
+
+        <!-- 辅助线层 -->
         <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div class="w-[2px] h-full bg-cyan-400/50 absolute left-[15%]"></div> <!-- 强迫左对齐线 -->
-            <div class="absolute left-[16%] top-1/2 text-cyan-400/80 text-xs -rotate-90 origin-left">请将单词对齐此线</div>
+            <!-- 左侧 15% 处的强青色辅助线 -->
+            <div class="absolute left-[15%] top-0 bottom-0 w-[2px] bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] opacity-80"></div>
+            <!-- 文字提示 -->
+            <div class="absolute left-[17%] top-1/2 -translate-y-1/2 text-cyan-400 text-xs font-medium bg-black/50 px-2 py-1 rounded backdrop-blur -rotate-90 origin-left">
+                单词列对齐此线
+            </div>
         </div>
-        <div class="h-24 bg-black flex justify-center items-center relative z-20">
-            <button onclick="takePhoto()" class="w-16 h-16 rounded-full border-4 border-white/30 bg-white active:scale-90 transition"></button>
+
+        <!-- 底部快门区 -->
+        <div class="h-32 bg-black/90 pb-safe flex items-center justify-center relative z-20">
+            <button onclick="takePhoto()" class="w-20 h-20 rounded-full border-[6px] border-white/30 flex items-center justify-center active:scale-90 transition duration-100">
+                <div class="w-16 h-16 bg-white rounded-full"></div>
+            </button>
+            <!-- 确认按钮 (仅在拍过照后显示) -->
+            <button onclick="closeCamera()" class="absolute right-8 text-white text-sm font-bold bg-white/20 px-4 py-2 rounded-full active:bg-white/30">
+                完成
+            </button>
         </div>
         <canvas id="cam-canvas" class="hidden"></canvas>
     </div>
 
-    <!-- 处理用画布 -->
+    <!-- 后台处理画布 -->
     <canvas id="proc-canvas" class="hidden"></canvas>
 
     <script>
+        // --- 状态管理 ---
         const state = { queue: [], worker: null };
         const dom = {
-            output: document.getElementById('output-area'),
-            mask: document.getElementById('processing-mask'),
+            grid: document.getElementById('image-grid'),
+            empty: document.getElementById('empty-state'),
+            count: document.getElementById('queue-count'),
+            drawer: document.getElementById('result-drawer'),
+            mask: document.getElementById('loading-mask'),
             status: document.getElementById('status-text'),
             prog: document.getElementById('progress-bar'),
-            debug: document.getElementById('debug-panel')
+            output: document.getElementById('output-area'),
+            camModal: document.getElementById('camera-modal')
         };
 
-        // --- V5 核心算法 ---
-
-        // 1. 强力清洗函数 (针对 interim'mtorm 等粘连问题)
+        // --- 核心算法 V5 (保持不变) ---
+        
+        // 1. 强力清洗
         function cleanText(text) {
             text = text.trim();
-            // 只要遇到这些符号，认为后面都是干扰项（音标、例句起始等），直接截断
-            const cutoffChars = ['\'', '’', '[', '(', '【', '/']; 
+            const cutoffChars = ['\'', '’', '[', '(', '【', '/'];
             for (let char of cutoffChars) {
                 const idx = text.indexOf(char);
-                if (idx !== -1) {
-                    text = text.substring(0, idx);
-                }
+                if (idx !== -1) text = text.substring(0, idx);
             }
-            // 清理首尾非字母
-            text = text.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '');
-            return text;
+            return text.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '');
         }
 
-        // 2. 色彩差值算法 (Score = (G+B) - 2R)
-        // 专门对抗黑色/灰色阴影。青色墨水：G和B高，R低 -> 分数高。阴影/黑色：RGB均衡 -> 分数接近0。
+        // 2. 色彩差值 (G+B) - 2R
         function analyzeColorV5(ctx, bbox) {
             const w = bbox.x1 - bbox.x0, h = bbox.y1 - bbox.y0;
             if (w <= 0 || h <= 0) return 0;
-            
             const data = ctx.getImageData(bbox.x0, bbox.y0, w, h).data;
             let totalScore = 0, pixels = 0;
-
-            for (let i = 0; i < data.length; i += 4) { // 采样步长改为1，精度更高
+            for (let i = 0; i < data.length; i += 4) {
                 const r = data[i], g = data[i+1], b = data[i+2];
-                // 仅计算深色像素 (亮度 < 220)，忽略白纸背景
-                if ((r+g+b)/3 < 220) {
-                    // 核心公式：青色强度 = (绿+蓝) - 2*红
-                    // 理想青色 (0,255,255) -> (255+255) - 0 = 510
-                    // 黑色 (50,50,50) -> (50+50) - 100 = 0
-                    const score = (g + b) - (2.0 * r); 
-                    if (score > 30) { // 阈值30，过滤掉一般的灰色噪点
-                        totalScore += score;
-                        pixels++;
-                    }
+                if ((r+g+b)/3 < 220) { // 墨水像素
+                    const score = (g + b) - (2.0 * r);
+                    if (score > 30) { totalScore += score; pixels++; }
                 }
             }
             return pixels > 0 ? (totalScore / pixels) : 0;
         }
 
-        // 3. 直方图布局分析 (寻找真正的左边距)
+        // 3. 直方图左边距
         function findLeftMarginMode(words) {
             if (words.length === 0) return 0;
-            
-            // 建立 10px 宽度的桶
-            const binSize = 10;
-            const bins = {};
-            
+            const binSize = 10, bins = {};
             words.forEach(w => {
-                // 排除明显在右侧的词(如页码)和极左噪点
                 if (w.bbox.x0 > 5) {
                     const bin = Math.floor(w.bbox.x0 / binSize) * binSize;
                     bins[bin] = (bins[bin] || 0) + 1;
                 }
             });
-
-            // 找到包含单词最多的那个桶 (众数)
-            let maxCount = 0;
-            let bestBin = 0;
-            
-            // 只看左侧 30% 区域的桶 (假设单词对齐在左侧)
-            // 简单点，直接找 count 最大的桶，通常就是左对齐线
+            let maxCount = 0, bestBin = 0;
             for (const [bin, count] of Object.entries(bins)) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    bestBin = parseInt(bin);
-                }
+                if (count > maxCount) { maxCount = count; bestBin = parseInt(bin); }
             }
             return bestBin;
         }
 
-        // --- 主管线 ---
+        // --- 主逻辑 ---
+
         async function runPipeline() {
-            if (state.queue.length === 0) return alert("请添加图片");
+            if (state.queue.length === 0) return alert("请先添加图片");
             
-            updateUI(true);
-            const isDebug = document.getElementById('debug-mode').checked;
-            if(isDebug) dom.debug.classList.remove('hidden');
-            dom.debug.innerHTML = '';
-            dom.output.value = '';
-            
+            // 打开抽屉，显示加载
+            dom.drawer.classList.add('open');
+            dom.mask.classList.remove('hidden');
+            dom.output.value = "";
             let finalOutput = "";
 
             try {
                 if (!state.worker) {
-                    dom.status.innerText = "加载识别模型...";
+                    updateStatus("正在启动 AI 引擎...", 5);
                     state.worker = await Tesseract.createWorker('eng');
-                    // 白名单只允许字母和基本标点，防止奇怪的符号
                     await state.worker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT,
                         tessedit_char_whitelist: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'/-[]()" 
@@ -238,182 +257,163 @@
 
                 for (let i = 0; i < state.queue.length; i++) {
                     const item = state.queue[i];
-                    updateProgress((i/state.queue.length)*100, `处理图片 ${i+1}...`);
+                    updateStatus(`正在分析第 ${i+1}/${state.queue.length} 张图片...`, (i/state.queue.length)*100);
 
-                    // 1. OCR
+                    // OCR
                     const { data: { words } } = await state.worker.recognize(item.src);
-
-                    // 2. 图像上下文
+                    
+                    // Canvas
                     const img = new Image(); img.src = item.src; await new Promise(r => img.onload = r);
                     const cvs = document.getElementById('proc-canvas');
                     const ctx = cvs.getContext('2d', { willReadFrequently: true });
                     cvs.width = img.width; cvs.height = img.height;
                     ctx.drawImage(img, 0, 0);
 
-                    // 3. 计算左边距基准线 (Mode)
+                    // Analysis
                     const leftMode = findLeftMarginMode(words);
-                    const leftTolerance = 20; // 允许 20px 的误差 (针对手抖/弯曲)
-
-                    // 4. 计算字号基准 (Median Height)
+                    const leftTolerance = 25; // 稍微放宽一点适应手机拍的不稳
                     const heights = words.map(w => w.bbox.y1 - w.bbox.y0).sort((a,b)=>a-b);
                     const medianH = heights[Math.floor(heights.length/2)] || 20;
 
                     let pageResult = [];
-                    if(isDebug) log(`[IMG ${i+1}] LeftMode:${leftMode}px, MedianH:${medianH}px`);
-
                     for (const w of words) {
-                        let rawText = w.text;
-                        let text = cleanText(rawText);
-                        
+                        let text = cleanText(w.text);
                         if (text.length < 3) continue;
-                        // 过滤常见例句介词 (除非颜色极其匹配)
-                        if (/^(The|This|That|With|For|And|But|When|If)$/i.test(text)) {
-                             // 暂时标记，看后面颜色分够不够高
-                        }
 
-                        // A. 位置检查
                         const dist = Math.abs(w.bbox.x0 - leftMode);
                         const isAligned = dist <= leftTolerance;
-                        
-                        // B. 颜色检查 (V5 核心)
                         const colorScore = analyzeColorV5(ctx, w.bbox);
-                        // 经验值：青色字通常 > 50，黑色字 < 10
-                        const isCyan = colorScore > 40; 
-                        
-                        // C. 字号检查
+                        const isCyan = colorScore > 40;
                         const h = w.bbox.y1 - w.bbox.y0;
                         const isBig = h > medianH * 1.1;
 
-                        // --- 综合决策 ---
                         let pass = false;
-                        let reasons = [];
+                        if (isCyan) pass = true;
+                        else if (isAligned && isBig && colorScore > 5) pass = true;
+                        else if (isAligned && colorScore > 15) pass = true;
 
-                        // 规则1：如果颜色很青，直接通过 (哪怕位置稍微偏一点)
-                        if (isCyan) {
-                            pass = true;
-                            reasons.push('Color');
-                        }
-                        // 规则2：如果位置完美对齐 + 字号偏大 (防止黑色例句首词混入)
-                        else if (isAligned && isBig) {
-                            // 必须不是纯黑 (colorScore > 5) 防止标题栏的黑色大字
-                            if (colorScore > 5) {
-                                pass = true;
-                                reasons.push('Pos+Size');
-                            }
-                        }
-                        // 规则3：位置完美 + 有一点点颜色倾向 (补救光线暗的情况)
-                        else if (isAligned && colorScore > 15) {
-                            pass = true;
-                            reasons.push('Pos+WeakColor');
-                        }
+                        if (/^(With|The|In|And)$/i.test(text) && colorScore < 80) pass = false;
 
-                        // 硬过滤：如果单词叫 "With" 且颜色分不高，杀掉
-                        if (/^(With|The|In)$/i.test(text) && colorScore < 80) pass = false;
-
-                        if (pass) {
-                            // 去重
-                            if (!pageResult.includes(text)) {
-                                pageResult.push(text);
-                                if(isDebug) log(`MATCH: ${text.padEnd(15)} | 🟢 Score:${colorScore.toFixed(0)} | ${reasons.join('+')}`);
-                            }
-                        } else {
-                            if(isDebug && isAligned) log(`SKIP : ${text.padEnd(15)} | ⚫ Score:${colorScore.toFixed(0)} | IsBig:${isBig}`);
-                        }
+                        if (pass && !pageResult.includes(text)) pageResult.push(text);
                     }
-
                     if (pageResult.length > 0) finalOutput += pageResult.join('\n') + '\n';
                 }
-                
-                dom.output.value = finalOutput;
-                updateProgress(100, "完成");
+
+                dom.output.value = finalOutput || "未能提取到单词，请检查图片是否清晰或光线是否充足。";
+                updateStatus("处理完成", 100);
+                setTimeout(() => dom.mask.classList.add('hidden'), 500);
 
             } catch(e) {
-                alert("错误: " + e.message);
-            } finally {
-                updateUI(false);
+                alert("出错: " + e.message);
+                dom.drawer.classList.remove('open'); // 关闭抽屉
             }
         }
 
-        // --- UI / Helper ---
-        function updateUI(busy) {
-            dom.mask.classList.toggle('hidden', !busy);
-            document.getElementById('run-btn').disabled = busy;
+        // --- UI 操作 ---
+
+        function updateStatus(text, percent) {
+            dom.status.innerText = text;
+            dom.prog.style.width = percent + '%';
         }
-        function updateProgress(val, txt) {
-            dom.prog.style.width = val + '%';
-            dom.status.innerText = txt;
-        }
-        function log(msg) {
-            const d = document.createElement('div');
-            d.innerText = msg;
-            d.className = msg.startsWith('MATCH') ? 'text-cyan-400' : 'text-slate-500';
-            dom.debug.appendChild(d);
+
+        function closeResult() {
+            dom.drawer.classList.remove('open');
         }
 
         function handleFiles(files) {
             Array.from(files).forEach(f => {
                 const r = new FileReader();
-                r.onload = e => {
-                    state.queue.push({src: e.target.result});
-                    renderQueue();
-                };
+                r.onload = e => addImage(e.target.result);
                 r.readAsDataURL(f);
             });
             document.getElementById('file-input').value = '';
         }
 
-        function renderQueue() {
-            document.getElementById('queue-count').innerText = state.queue.length;
-            const list = document.getElementById('image-list');
-            list.innerHTML = '';
-            if(state.queue.length === 0) {
-                list.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-300 opacity-60"><i class="fa-regular fa-image text-3xl mb-2"></i><span class="text-xs">暂无图片</span></div>`;
+        function addImage(src) {
+            state.queue.push({ src });
+            renderGrid();
+        }
+
+        function renderGrid() {
+            dom.count.innerText = state.queue.length;
+            document.getElementById('cam-count').innerText = state.queue.length;
+            
+            if (state.queue.length === 0) {
+                dom.grid.innerHTML = '';
+                dom.empty.style.display = 'flex';
                 return;
             }
+            dom.empty.style.display = 'none';
+            dom.grid.innerHTML = '';
+            
             state.queue.forEach((img, i) => {
                 const div = document.createElement('div');
-                div.className = 'flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm';
+                div.className = "relative aspect-[3/4] bg-slate-200 rounded-xl overflow-hidden shadow-sm border border-slate-100";
                 div.innerHTML = `
-                    <div class="w-10 h-10 bg-slate-100 rounded overflow-hidden flex-shrink-0"><img src="${img.src}" class="w-full h-full object-cover"></div>
-                    <div class="flex-1 text-xs font-bold text-slate-700">图片 #${i+1}</div>
-                    <button onclick="state.queue.splice(${i},1);renderQueue()" class="text-slate-400 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                    <img src="${img.src}" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
+                    <div class="absolute bottom-2 left-2 text-white text-xs font-bold">#${i+1}</div>
+                    <button onclick="removeImage(${i})" class="absolute top-1 right-1 w-6 h-6 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur active:bg-red-500 transition">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
                 `;
-                list.appendChild(div);
+                dom.grid.appendChild(div);
             });
         }
 
-        // 相机相关
+        function removeImage(i) {
+            state.queue.splice(i, 1);
+            renderGrid();
+        }
+
+        function copyResult() {
+            dom.output.select();
+            document.execCommand('copy'); // 兼容性更好
+            alert('已复制到剪贴板');
+        }
+        
+        function downloadResult() {
+            const blob = new Blob([dom.output.value], {type:'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `words_${Date.now()}.txt`;
+            a.click();
+        }
+
+        // --- 相机逻辑 ---
         let stream;
         function openCamera() {
-            document.getElementById('camera-modal').style.display = 'flex';
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(s => { stream = s; document.getElementById('cam-video').srcObject = s; })
-                .catch(() => alert('无法访问相机'));
+            dom.camModal.style.display = 'flex';
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
+            }).then(s => {
+                stream = s;
+                document.getElementById('cam-video').srcObject = s;
+            }).catch(e => {
+                alert("相机启动失败，请确保使用HTTPS或本地环境");
+                closeCamera();
+            });
         }
+
         function closeCamera() {
-            document.getElementById('camera-modal').style.display = 'none';
+            dom.camModal.style.display = 'none';
             if(stream) stream.getTracks().forEach(t => t.stop());
         }
+
         function takePhoto() {
             const vid = document.getElementById('cam-video');
             const cvs = document.getElementById('cam-canvas');
             cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
             cvs.getContext('2d').drawImage(vid, 0, 0);
-            state.queue.push({src: cvs.toDataURL('image/jpeg')});
-            renderQueue();
             
-            // 动画反馈
-            const btn = document.querySelector('#camera-modal button[onclick="takePhoto()"]');
-            btn.style.transform = 'scale(0.8)';
-            setTimeout(() => btn.style.transform = 'scale(1)', 100);
-        }
-
-        function copyResult() { navigator.clipboard.writeText(dom.output.value).then(()=>alert('已复制')); }
-        function downloadResult() {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([dom.output.value], {type:'text/plain'}));
-            a.download = `words_${Date.now()}.txt`;
-            a.click();
+            addImage(cvs.toDataURL('image/jpeg', 0.8));
+            
+            // 闪屏反馈
+            const flash = document.createElement('div');
+            flash.className = "fixed inset-0 bg-white z-[110] transition-opacity duration-200";
+            document.body.appendChild(flash);
+            setTimeout(() => { flash.style.opacity = 0; setTimeout(() => flash.remove(), 200); }, 50);
         }
     </script>
 </body>
