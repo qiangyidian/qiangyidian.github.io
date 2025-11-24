@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>青色单词提取 (Mobile V12)</title>
+    <title>青色单词提取 (Mobile V13)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -15,7 +15,7 @@
         }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background-color: #f8fafc; 
+            background-color: #f1f5f9; 
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior: none;
         }
@@ -35,9 +35,6 @@
             animation: scan 2s infinite linear;
         }
         @keyframes scan { 0% {top:10%; opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:90%; opacity:0} }
-
-        /* 排序动画 */
-        .list-move { transition: transform 0.3s ease; }
     </style>
 </head>
 <body class="h-dynamic flex flex-col overflow-hidden text-slate-800 bg-slate-50">
@@ -45,16 +42,18 @@
     <!-- 顶部 -->
     <header class="bg-white/95 backdrop-blur border-b border-slate-200 flex items-center justify-between px-4 z-10 shrink-0 sticky top-0 pt-[var(--sat)] pb-3 shadow-sm">
         <div class="flex items-center gap-2.5 h-10">
-            <div class="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md shadow-cyan-100">V12</div>
+            <div class="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md shadow-cyan-100">V13</div>
             <div class="flex flex-col justify-center">
-                <h1 class="font-bold text-sm tracking-tight text-slate-800 leading-tight">自动顺序校准</h1>
-                <span class="text-[10px] text-slate-400 leading-none mt-0.5">Auto Sort by Filename</span>
+                <h1 class="font-bold text-sm tracking-tight text-slate-800 leading-tight">顺序提取</h1>
+                <span class="text-[10px] text-slate-400 leading-none mt-0.5">Auto Sort (A-Z)</span>
             </div>
         </div>
         
         <div class="flex gap-2 items-center">
-            <button onclick="sortQueueByName()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-full text-xs font-bold text-slate-600 transition flex items-center gap-1.5 border border-slate-200">
-                <i class="fa-solid fa-arrow-down-a-z text-cyan-500"></i> 强制重排
+            <!-- 排序切换按钮 -->
+            <button onclick="toggleSortOrder()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-full text-xs font-bold text-slate-600 transition flex items-center gap-1.5 border border-slate-200">
+                <i id="sort-icon" class="fa-solid fa-arrow-down-a-z text-cyan-500"></i> 
+                <span id="sort-label">正序</span>
             </button>
             <div class="bg-slate-800 px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg shadow-slate-200">
                 <span id="queue-count">0</span>
@@ -67,14 +66,14 @@
         <!-- 空状态 -->
         <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pb-24">
             <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-5 shadow-sm border border-slate-100">
-                <i class="fa-solid fa-folder-tree text-4xl text-slate-200"></i>
+                <i class="fa-solid fa-arrow-down-1-9 text-4xl text-slate-200"></i>
             </div>
-            <p class="text-sm font-bold text-slate-400">上传后自动按文件名排序</p>
-            <p class="text-xs text-slate-300 mt-1">(Page1, Page2, Page3...)</p>
+            <p class="text-sm font-bold text-slate-400">按文件名 (1→9) 自动排列</p>
+            <p class="text-xs text-slate-300 mt-1">支持一键切换倒序</p>
         </div>
 
         <!-- 图片网格 -->
-        <div id="image-grid" class="grid grid-cols-2 gap-3 pb-28 content-start"></div>
+        <div id="image-grid" class="grid grid-cols-2 gap-3 pb-28 content-start transition-all"></div>
     </main>
 
     <!-- 底部操作栏 -->
@@ -90,7 +89,7 @@
             </button>
 
             <button id="run-btn" onclick="runPipeline()" class="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-cyan-200 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale">
-                <span>按序提取</span>
+                <span>按当前顺序提取</span>
                 <i class="fa-solid fa-bolt"></i>
             </button>
         </div>
@@ -101,7 +100,7 @@
         <div class="h-14 border-b border-slate-100 flex items-center justify-between px-4 bg-white shrink-0">
             <div class="flex items-center gap-2">
                 <h2 class="font-bold text-slate-800 text-lg">识别结果</h2>
-                <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">按页码拼接</span>
+                <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">已按列表顺序拼接</span>
             </div>
             <button onclick="closeResult()" class="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full text-slate-500 active:bg-slate-200 transition">
                 <i class="fa-solid fa-chevron-down"></i>
@@ -111,7 +110,6 @@
         <div class="flex-1 relative bg-slate-50">
             <textarea id="output-area" class="w-full h-full p-5 resize-none focus:outline-none font-mono text-base leading-relaxed text-slate-700 bg-transparent" readonly placeholder="等待处理..."></textarea>
             
-            <!-- 加载遮罩 -->
             <div id="loading-mask" class="absolute inset-0 bg-white/95 backdrop-blur z-10 flex flex-col items-center justify-center hidden">
                 <div class="w-12 h-12 border-4 border-slate-100 rounded-full border-t-cyan-500 animate-spin mb-4"></div>
                 <div id="status-text" class="text-sm font-bold text-slate-600 animate-pulse">初始化引擎...</div>
@@ -170,7 +168,7 @@
     <canvas id="proc-canvas" class="hidden"></canvas>
 
     <script>
-        const state = { queue: [], worker: null };
+        const state = { queue: [], worker: null, isAscending: true };
         const dom = {
             grid: document.getElementById('image-grid'),
             empty: document.getElementById('empty-state'),
@@ -182,21 +180,23 @@
             prog: document.getElementById('progress-bar'),
             output: document.getElementById('output-area'),
             camModal: document.getElementById('camera-modal'),
-            flash: document.getElementById('cam-flash')
+            flash: document.getElementById('cam-flash'),
+            sortLabel: document.getElementById('sort-label'),
+            sortIcon: document.getElementById('sort-icon')
         };
 
-        // --- 核心：自动排序处理 ---
+        // --- 1. 文件处理与排序 (关键修正) ---
         
         async function handleFiles(files) {
             let fileList = Array.from(files);
             
-            // 1. 立即排序：按照文件名进行自然排序 (1, 2, 10 而不是 1, 10, 2)
-            // 这一步确保了不管浏览器传来的顺序多乱，我们都先纠正过来
+            // 步骤 1: 默认按名称正序排列 (A -> Z, 1 -> 10)
+            // 这样可以抵消浏览器可能的乱序
             fileList.sort((a, b) => {
                 return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
             });
 
-            // 2. 按排序后的顺序读取
+            // 步骤 2: 顺序读取
             const promises = fileList.map(file => {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
@@ -208,31 +208,49 @@
                 });
             });
 
-            // 3. 等待所有读取完成，结果数组依然保持之前的排序
             const results = await Promise.all(promises);
             
-            // 4. 加入主队列
+            // 步骤 3: 插入队列
+            // 这里我们直接把新的一批图加到队列末尾。
+            // 如果用户当前选择了“倒序”，我们在显示的时候再反转即可，
+            // 但底层数据最好保持一种逻辑，方便管理。
             results.forEach(item => state.queue.push(item));
             
-            // 5. 如果是分批上传的，为了保险起见，可以再对整个主队列排一次序（可选）
-            // 这里我们默认用户希望新上传的排在后面，但如果用户想要全局排序，可以点顶部的按钮
+            // 如果当前处于倒序模式，新加入的会被排在最后，但视觉上可能需要根据需求调整
+            // 这里为了简单，每次添加后，根据当前的排序状态，重新对整个队列排一次
+            reSortQueue();
             
-            renderUI();
             document.getElementById('file-input').value = '';
-            
-            // 给用户一个反馈
-            if(results.length > 0) {
-                // 简单的toast逻辑略，这里直接用alert有点打扰，就不加了
+        }
+
+        // --- 2. 排序控制 ---
+
+        function toggleSortOrder() {
+            state.isAscending = !state.isAscending;
+            updateSortButtonUI();
+            reSortQueue();
+        }
+
+        function updateSortButtonUI() {
+            if (state.isAscending) {
+                dom.sortLabel.innerText = "正序 (1-9)";
+                dom.sortIcon.className = "fa-solid fa-arrow-down-a-z text-cyan-500";
+            } else {
+                dom.sortLabel.innerText = "倒序 (9-1)";
+                dom.sortIcon.className = "fa-solid fa-arrow-up-a-z text-orange-500";
             }
         }
 
-        function sortQueueByName() {
-            if (state.queue.length === 0) return;
+        function reSortQueue() {
+            if (state.queue.length === 0) {
+                renderUI();
+                return;
+            }
             state.queue.sort((a, b) => {
-                return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+                const cmp = a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+                return state.isAscending ? cmp : -cmp;
             });
             renderUI();
-            alert("已按文件名重新排序");
         }
 
         function renderUI() {
@@ -249,26 +267,22 @@
             
             state.queue.forEach((img, i) => {
                 const div = document.createElement('div');
-                div.className = "relative aspect-[3/4] bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 group";
+                div.className = "relative aspect-[3/4] bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 group transition-all duration-300";
                 
-                // 智能显示文件名：去掉扩展名，保留关键部分
-                let cleanName = img.name.replace(/\.[^/.]+$/, ""); // 去掉后缀
-                if (cleanName.length > 10) {
-                    // 取头取尾: image_2023...05 -> img...05
-                    cleanName = cleanName.slice(0, 6) + "..." + cleanName.slice(-3);
-                }
+                let cleanName = img.name.replace(/\.[^/.]+$/, ""); 
+                if (cleanName.length > 10) cleanName = cleanName.slice(0, 5) + "..." + cleanName.slice(-3);
 
                 div.innerHTML = `
                     <img src="${img.src}" class="w-full h-full object-cover">
                     
                     <!-- 序号 -->
-                    <div class="absolute top-2 left-2 w-7 h-7 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md z-10 border-2 border-white">
+                    <div class="absolute top-2 left-2 w-7 h-7 ${state.isAscending ? 'bg-cyan-500' : 'bg-orange-500'} text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md z-10 border-2 border-white">
                         ${i+1}
                     </div>
 
-                    <!-- 文件名 (视觉确认) -->
-                    <div class="absolute bottom-0 left-0 w-full bg-slate-900/70 backdrop-blur-sm py-1 flex justify-center items-center">
-                        <span class="text-[10px] text-white/90 font-mono">${cleanName}</span>
+                    <!-- 文件名 -->
+                    <div class="absolute bottom-0 left-0 w-full bg-slate-900/70 backdrop-blur-sm py-1 flex justify-center items-center px-2">
+                        <span class="text-[10px] text-white/90 font-mono truncate w-full text-center">${cleanName}</span>
                     </div>
 
                     <!-- 删除 -->
@@ -280,7 +294,7 @@
             });
         }
 
-        // --- 识别算法 (V5 稳定版) ---
+        // --- 3. 识别算法 (保持 V5 稳定) ---
         
         function cleanText(text) {
             text = text.trim();
@@ -341,9 +355,10 @@
                     });
                 }
 
+                // 严格按当前显示的顺序处理
                 for (let i = 0; i < state.queue.length; i++) {
                     const item = state.queue[i];
-                    updateStatus(`处理中: ${item.name} (${i+1}/${state.queue.length})`, (i/state.queue.length)*100);
+                    updateStatus(`正在处理: ${item.name} (${i+1}/${state.queue.length})`, (i/state.queue.length)*100);
 
                     const { data: { words } } = await state.worker.recognize(item.src);
                     
@@ -418,8 +433,10 @@
             if(vid.videoWidth) {
                 cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
                 cvs.getContext('2d').drawImage(vid,0,0);
-                state.queue.push({src: cvs.toDataURL('image/jpeg', 0.85), name: `Photo_${Date.now()}.jpg`});
-                renderUI();
+                // 拍照不参与排序，直接追加到最后
+                state.queue.push({src: cvs.toDataURL('image/jpeg', 0.85), name: `Z_Photo_${Date.now()}.jpg`});
+                // 但如果当前是排序状态，还是得排一下
+                reSortQueue();
                 dom.flash.style.opacity=1; setTimeout(()=>dom.flash.style.opacity=0,100);
             }
         }
