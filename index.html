@@ -1,0 +1,486 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  CheckCircle2, 
+  Circle, 
+  Plus, 
+  Trash2, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  BarChart3, 
+  Smile, 
+  Sticker, 
+  MoreHorizontal,
+  ChevronRight,
+  ChevronLeft,
+  Layout,
+  Star,
+  Book,
+  X,
+  Edit3,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Bold,
+  Italic,
+  AlignLeft,
+  AlignCenter,
+  List
+} from 'lucide-react';
+
+const App = () => {
+  // --- Utility Functions ---
+  const formatDate = (date) => {
+    const d = new Date(date);
+    const month = '' + (d.getMonth() + 1);
+    const day = '' + d.getDate();
+    const year = d.getFullYear();
+    return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
+  };
+
+  const getDayName = (dateStr) => {
+    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return days[new Date(dateStr).getDay()];
+  };
+
+  const todayStr = formatDate(new Date());
+
+  // --- State Management ---
+  const [tasks, setTasks] = useState([
+    { id: 1, text: "晨间阅读 30 分钟", time: "07:00", category: "self-growth", completed: true, date: todayStr },
+    { id: 2, text: "深度工作：项目策划", time: "09:00", category: "work", completed: false, date: todayStr },
+    { id: 3, text: "健身房腿部训练", time: "18:00", category: "health", completed: false, date: todayStr },
+  ]);
+  
+  // Diary state now stores rich HTML content
+  // Structure: { "2023-10-27": "<div>Today was great... <img .../></div>" }
+  const [diaries, setDiaries] = useState({
+      [todayStr]: "今天也是充满秩序的一天..."
+  });
+  
+  const [activeTab, setActiveTab] = useState('daily'); // 'daily', 'diary', 'calendar', 'analytics'
+  const [newTask, setNewTask] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("work");
+  const [stickers, setStickers] = useState([]); 
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  
+  // Calendar specific state
+  const [calendarViewDate, setCalendarViewDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // --- Helpers ---
+  const categories = {
+    work: { label: "工作", color: "bg-blue-100 text-blue-600 border-blue-200" },
+    study: { label: "学习", color: "bg-purple-100 text-purple-600 border-purple-200" },
+    health: { label: "健康", color: "bg-green-100 text-green-600 border-green-200" },
+    life: { label: "生活", color: "bg-orange-100 text-orange-600 border-orange-200" },
+    "self-growth": { label: "提升", color: "bg-pink-100 text-pink-600 border-pink-200" },
+  };
+
+  const stickerOptions = ["🌟", "🔥", "💧", "💻", "📚", "🧸", "☕", "🎵", "✅", "💯", "🌸", "🥑"];
+
+  const todaysTasks = tasks.filter(t => t.date === todayStr);
+  const progress = todaysTasks.length > 0 
+    ? Math.round((todaysTasks.filter(t => t.completed).length / todaysTasks.length) * 100) 
+    : 0;
+
+  // --- Handlers ---
+  const addTask = (targetDate = todayStr) => {
+    if (!newTask.trim()) return;
+    const newTaskObj = {
+      id: Date.now(),
+      text: newTask,
+      time: "待定",
+      category: selectedCategory,
+      completed: false,
+      date: targetDate
+    };
+    setTasks([...tasks, newTaskObj]);
+    setNewTask("");
+  };
+
+  const toggleTask = (id) => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const deleteTask = (id) => {
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+
+  // Sticker Logic
+  const addSticker = (emoji) => {
+    const newSticker = {
+      id: Date.now(),
+      emoji: emoji,
+      top: Math.random() * 80 + 10 + '%',
+      left: Math.random() * 80 + 10 + '%',
+      rotation: Math.random() * 30 - 15 + 'deg'
+    };
+    setStickers([...stickers, newSticker]);
+    setShowStickerPicker(false);
+  };
+  const removeSticker = (id) => setStickers(stickers.filter(s => s.id !== id));
+
+  // --- Components ---
+
+  const Sidebar = () => (
+    <div className="hidden md:flex flex-col w-20 bg-white border-r border-slate-200 items-center py-8 gap-8 h-full z-20 shadow-sm transition-all">
+      <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">
+        J.
+      </div>
+      <nav className="flex flex-col gap-6">
+        <button onClick={() => setActiveTab('daily')} className={`p-3 rounded-xl transition-all ${activeTab === 'daily' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`} title="今日视图">
+          <Layout size={24} />
+        </button>
+        {/* New Diary Button in 2nd Position */}
+        <button onClick={() => setActiveTab('diary')} className={`p-3 rounded-xl transition-all ${activeTab === 'diary' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`} title="富文本日记">
+          <Book size={24} />
+        </button>
+        <button onClick={() => setActiveTab('calendar')} className={`p-3 rounded-xl transition-all ${activeTab === 'calendar' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`} title="日历目录">
+          <CalendarIcon size={24} />
+        </button>
+        <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 transition-all">
+          <BarChart3 size={24} />
+        </button>
+      </nav>
+      <div className="mt-auto">
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+          <Smile size={20} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const TaskCard = ({ task, readOnly = false }) => (
+    <div className={`group flex items-center gap-4 p-4 bg-white rounded-2xl border transition-all duration-300 ${task.completed ? 'border-slate-100 opacity-60 bg-slate-50' : 'border-white shadow-sm hover:shadow-md hover:-translate-y-1'}`}>
+      <button 
+        onClick={() => !readOnly && toggleTask(task.id)}
+        disabled={readOnly}
+        className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+            task.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 text-transparent hover:border-indigo-400'
+        } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+      >
+        <CheckCircle2 size={14} />
+      </button>
+      
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-xs px-2 py-0.5 rounded-full border ${categories[task.category].color}`}>
+            {categories[task.category].label}
+          </span>
+          <span className="text-xs text-slate-400 flex items-center gap-1">
+            <Clock size={10} /> {task.time}
+          </span>
+        </div>
+        <p className={`font-medium text-slate-700 ${task.completed ? 'line-through text-slate-400' : ''}`}>
+          {task.text}
+        </p>
+      </div>
+
+      {!readOnly && (
+        <button 
+            onClick={() => deleteTask(task.id)}
+            className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity p-2"
+        >
+            <Trash2 size={16} />
+        </button>
+      )}
+    </div>
+  );
+
+  // --- New Component: Rich Text Diary Editor ---
+  const DiaryEditor = () => {
+    const editorRef = useRef(null);
+    const [wordCount, setWordCount] = useState(0);
+    const fileInputRef = useRef(null);
+    const videoInputRef = useRef(null);
+
+    // Load initial content
+    useEffect(() => {
+        if (editorRef.current) {
+            editorRef.current.innerHTML = diaries[todayStr] || "";
+            // Add placeholder behavior visually if needed, though simpler to just leave empty
+        }
+    }, []);
+
+    const handleInput = () => {
+        if (editorRef.current) {
+            const content = editorRef.current.innerHTML;
+            setDiaries(prev => ({ ...prev, [todayStr]: content }));
+            setWordCount(editorRef.current.innerText.length);
+        }
+    };
+
+    const execCommand = (command, value = null) => {
+        document.execCommand(command, false, value);
+        if (editorRef.current) editorRef.current.focus();
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                // Insert HTML for image
+                const imgHtml = `<img src="${event.target.result}" style="max-width: 100%; border-radius: 12px; margin: 10px 0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);" />`;
+                execCommand('insertHTML', imgHtml);
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = null; // Reset
+    };
+
+    const handleVideoUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check video duration
+            const videoElement = document.createElement('video');
+            videoElement.preload = 'metadata';
+            
+            videoElement.onloadedmetadata = function() {
+                window.URL.revokeObjectURL(videoElement.src);
+                const duration = videoElement.duration;
+                
+                if (duration > 120) {
+                    alert("⚠️ 视频过长！请上传2分钟（120秒）以内的视频。");
+                } else {
+                    // Valid duration, proceed to insert
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const videoHtml = `
+                            <div contenteditable="false" style="margin: 10px 0;">
+                                <video controls src="${event.target.result}" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></video>
+                            </div><br/>
+                        `;
+                        execCommand('insertHTML', videoHtml);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            
+            videoElement.onerror = function() {
+                alert("无法读取视频文件，请重试。");
+            }
+            
+            videoElement.src = URL.createObjectURL(file);
+        }
+        e.target.value = null;
+    };
+
+    return (
+        <div className="flex-1 p-8 h-full overflow-y-auto no-scrollbar bg-[#F8FAFC]">
+            <div className="max-w-3xl mx-auto h-full flex flex-col">
+                <header className="mb-6">
+                    <div className="flex items-center gap-3 text-slate-400 mb-2">
+                        <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-xs font-bold">Today</span>
+                        <span className="text-sm">{todayStr}</span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-slate-800">今日随笔</h1>
+                </header>
+
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex-1 flex flex-col overflow-hidden">
+                    {/* Toolbar */}
+                    <div className="border-b border-slate-100 p-3 flex items-center gap-2 flex-wrap bg-slate-50/50">
+                        <button onClick={() => execCommand('bold')} className="p-2 hover:bg-slate-200 rounded text-slate-600" title="加粗"><Bold size={18}/></button>
+                        <button onClick={() => execCommand('italic')} className="p-2 hover:bg-slate-200 rounded text-slate-600" title="斜体"><Italic size={18}/></button>
+                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                        <button onClick={() => execCommand('justifyLeft')} className="p-2 hover:bg-slate-200 rounded text-slate-600"><AlignLeft size={18}/></button>
+                        <button onClick={() => execCommand('justifyCenter')} className="p-2 hover:bg-slate-200 rounded text-slate-600"><AlignCenter size={18}/></button>
+                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                        
+                        {/* Image Upload */}
+                        <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded text-slate-600 flex items-center gap-2 transition-colors">
+                            <ImageIcon size={18}/> <span className="text-xs font-medium">图片</span>
+                        </button>
+                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+
+                        {/* Video Upload */}
+                        <button onClick={() => videoInputRef.current?.click()} className="p-2 hover:bg-pink-50 hover:text-pink-600 rounded text-slate-600 flex items-center gap-2 transition-colors">
+                            <VideoIcon size={18}/> <span className="text-xs font-medium">视频(Max 2min)</span>
+                        </button>
+                        <input type="file" accept="video/*" ref={videoInputRef} onChange={handleVideoUpload} className="hidden" />
+                    </div>
+
+                    {/* Editor Area */}
+                    <div 
+                        className="flex-1 p-8 overflow-y-auto focus:outline-none prose prose-slate max-w-none prose-img:rounded-xl prose-p:my-2"
+                        contentEditable
+                        ref={editorRef}
+                        onInput={handleInput}
+                        suppressContentEditableWarning={true}
+                        style={{ minHeight: '300px' }}
+                    >
+                    </div>
+
+                    <div className="p-3 border-t border-slate-100 text-right text-xs text-slate-400 bg-slate-50/30">
+                        {wordCount} 字 | 自动保存中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+  };
+
+  const CalendarView = () => {
+    const year = calendarViewDate.getFullYear();
+    const month = calendarViewDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const days = [];
+    for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
+    for (let i = 1; i <= daysInMonth; i++) days.push(i);
+
+    return (
+        <div className="flex-1 p-8 h-full overflow-y-auto">
+            <div className="max-w-4xl mx-auto">
+                <header className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-800">日历目录</h1>
+                        <p className="text-slate-400 text-sm mt-1">回顾过去，规划未来。</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => setCalendarViewDate(new Date(year, month - 1, 1))} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-600"><ChevronLeft/></button>
+                        <span className="text-xl font-bold text-slate-700 w-32 text-center pt-1">{year}年 {month + 1}月</span>
+                        <button onClick={() => setCalendarViewDate(new Date(year, month + 1, 1))} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-600"><ChevronRight/></button>
+                    </div>
+                </header>
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                    <div className="grid grid-cols-7 mb-4 text-center text-slate-400 font-medium text-sm">
+                        {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d} className="py-2">{d}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-2">
+                        {days.map((day, idx) => {
+                            if (!day) return <div key={idx} className="aspect-square"></div>;
+                            const dateStr = [year, (month + 1).toString().padStart(2, '0'), day.toString().padStart(2, '0')].join('-');
+                            const isToday = dateStr === todayStr;
+                            return (
+                                <button key={idx} onClick={() => setSelectedDate(dateStr)} className={`aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all group ${isToday ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-indigo-50 text-slate-700 bg-slate-50'}`}>
+                                    <span className="text-lg font-bold">{day}</span>
+                                    {isToday && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">今</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+  };
+
+  const DayDetailModal = () => {
+    if (!selectedDate) return null;
+    const isFuture = selectedDate > todayStr;
+    const isPast = selectedDate < todayStr;
+    const dateTasks = tasks.filter(t => t.date === selectedDate);
+    // For past days, we show the diary content as read-only HTML
+    const diaryContent = diaries[selectedDate] || "";
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className={`p-6 text-white flex justify-between items-start ${isFuture ? 'bg-blue-500' : isPast ? 'bg-orange-400' : 'bg-indigo-600'}`}>
+                    <div>
+                        <div className="flex items-center gap-2 opacity-80 mb-1"><CalendarIcon size={16}/><span className="text-sm font-medium">{isFuture ? "未来规划" : isPast ? "时光胶囊" : "今日专注"}</span></div>
+                        <h2 className="text-3xl font-bold">{selectedDate} <span className="text-lg font-normal opacity-80">{getDayName(selectedDate)}</span></h2>
+                    </div>
+                    <button onClick={() => setSelectedDate(null)} className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"><X size={20} /></button>
+                </div>
+                <div className="p-6 overflow-y-auto custom-scrollbar">
+                    <div className="mb-8">
+                        <h3 className="text-slate-700 font-bold mb-4 flex items-center gap-2"><Layout size={18} className="text-indigo-500"/>{isPast ? "当日完成情况" : "计划清单"}</h3>
+                        {(selectedDate === todayStr || isFuture) && (
+                            <div className="flex gap-2 mb-4">
+                                <input type="text" placeholder="添加此日计划..." className="flex-1 bg-slate-50 border-none rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-100" value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(selectedDate)}/>
+                                <button onClick={() => addTask(selectedDate)} className="bg-indigo-100 text-indigo-600 p-2 rounded-xl hover:bg-indigo-200"><Plus size={20} /></button>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            {dateTasks.length > 0 ? dateTasks.map(task => <TaskCard key={task.id} task={task} readOnly={isPast} />) : <div className="text-center py-6 text-slate-300 bg-slate-50 rounded-2xl border border-dashed border-slate-200">无记录</div>}
+                        </div>
+                    </div>
+                    {!isFuture && (
+                        <div>
+                            <h3 className="text-slate-700 font-bold mb-4 flex items-center gap-2"><Book size={18} className="text-orange-500"/>{isPast ? "当日日记" : "今日随笔 (请在日记页面编辑)"}</h3>
+                            <div className="prose prose-slate max-w-none bg-orange-50/50 p-4 rounded-2xl border border-orange-100" dangerouslySetInnerHTML={{ __html: diaryContent || "<span class='text-slate-400'>没有日记内容...</span>" }}></div>
+                            {selectedDate === todayStr && <button onClick={() => { setSelectedDate(null); setActiveTab('diary'); }} className="mt-2 text-indigo-600 text-sm font-medium hover:underline">去编辑今日日记 &rarr;</button>}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+  };
+
+  return (
+    <div className="flex h-screen bg-[#F8FAFC] font-sans selection:bg-indigo-100 overflow-hidden relative">
+      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#E2E8F0 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+      <Sidebar />
+      <div className="flex-1 flex h-full relative z-10 overflow-hidden">
+        {activeTab === 'daily' && (
+            <main className="flex-1 flex flex-col md:flex-row h-full w-full">
+                <div className="flex-1 p-4 md:p-8 overflow-y-auto no-scrollbar">
+                    <header className="mb-8 flex justify-between items-center">
+                        <div><h1 className="text-2xl font-bold text-slate-800 tracking-tight">今日视图 ({todayStr})</h1><p className="text-slate-400 text-sm mt-1">"秩序带来自由。"</p></div>
+                        <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="bg-white p-2 rounded-full shadow-sm hover:scale-110 transition-transform text-indigo-500"><Sticker size={20} /></button>
+                    </header>
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-6 relative overflow-hidden group">
+                        <div className="flex justify-between items-end mb-2 relative z-10">
+                            <div><h2 className="text-3xl font-bold text-slate-800">{progress}%</h2><p className="text-slate-500 text-sm font-medium">今日秩序值</p></div>
+                            <div className="text-right"><p className="text-indigo-600 font-bold">{todaysTasks.filter(t => t.completed).length}/{todaysTasks.length}</p><p className="text-xs text-slate-400">已完成</p></div>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden relative z-10"><div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div></div>
+                    </div>
+                    <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 mb-8 flex items-center gap-2 focus-within:ring-2 focus-within:ring-indigo-100 transition-shadow">
+                        <div className="p-2"><div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300"><Plus size={18} /></div></div>
+                        <input type="text" placeholder="输入今日任务..." className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-300 h-10" value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(todayStr)}/>
+                        <div className="flex items-center gap-1 pr-2">
+                            <select className="text-xs bg-slate-50 text-slate-500 border-none rounded-lg py-1 px-2 cursor-pointer outline-none hover:bg-slate-100" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                                {Object.keys(categories).map(key => <option key={key} value={key}>{categories[key].label}</option>)}
+                            </select>
+                            <button onClick={() => addTask(todayStr)} className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition-colors"><ChevronRight size={16} /></button>
+                        </div>
+                    </div>
+                    <div className="space-y-3 pb-20">
+                        {todaysTasks.map(task => <TaskCard key={task.id} task={task} />)}
+                        {todaysTasks.length === 0 && <div className="text-center py-12 text-slate-300"><p>今日暂无任务，享受当下 ✨</p></div>}
+                    </div>
+                </div>
+                <div className="w-96 p-8 hidden lg:block border-l border-slate-200 bg-white/50 backdrop-blur-sm">
+                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 h-full overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6"><h3 className="font-bold text-slate-700 flex items-center gap-2"><CalendarIcon size={18} className="text-indigo-500"/> 时间轴</h3><span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-md">Today</span></div>
+                        <div className="space-y-4 relative">
+                            {[7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map(hour => {
+                                const t = todaysTasks.find(task => parseInt(task.time.split(':')[0]) === hour);
+                                return <div key={hour} className="flex gap-4 min-h-[50px] text-sm"><span className="w-10 text-slate-400 text-right">{hour}:00</span><div className="flex-1 border-t border-slate-100 relative pt-1">{t && <div className={`p-1 px-2 rounded bg-indigo-50 text-indigo-600 text-xs`}>{t.text}</div>}</div></div>
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </main>
+        )}
+
+        {/* --- Render Diary Editor --- */}
+        {activeTab === 'diary' && <DiaryEditor />}
+
+        {activeTab === 'calendar' && <CalendarView />}
+      </div>
+      <DayDetailModal />
+      {showStickerPicker && (
+          <div className="absolute top-20 left-20 z-50 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+              <div className="grid grid-cols-4 gap-2">{stickerOptions.map(emoji => <button key={emoji} onClick={() => addSticker(emoji)} className="text-2xl hover:bg-slate-50 p-2 rounded-xl transition-colors">{emoji}</button>)}</div>
+          </div>
+      )}
+      {stickers.map(sticker => (
+          <div key={sticker.id} className="absolute cursor-move select-none text-4xl hover:scale-125 transition-transform z-40 group" style={{ top: sticker.top, left: sticker.left, transform: `rotate(${sticker.rotation})` }} draggable="true">
+            {sticker.emoji}
+            <button onClick={() => removeSticker(sticker.id)} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">×</button>
+          </div>
+      ))}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 flex justify-around z-50">
+        <button onClick={() => setActiveTab('daily')} className={activeTab === 'daily' ? 'text-indigo-600' : 'text-slate-400'}><Layout/></button>
+        <button onClick={() => setActiveTab('diary')} className={activeTab === 'diary' ? 'text-indigo-600' : 'text-slate-400'}><Book/></button>
+        <button onClick={() => setActiveTab('calendar')} className={activeTab === 'calendar' ? 'text-indigo-600' : 'text-slate-400'}><CalendarIcon/></button>
+      </div>
+    </div>
+  );
+};
+
+export default App;
