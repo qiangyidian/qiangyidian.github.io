@@ -1,574 +1,192 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  CheckCircle2, 
-  Circle, 
-  Plus, 
-  Trash2, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  BarChart3, 
-  Smile, 
-  Sticker, 
-  MoreHorizontal,
-  ChevronRight,
-  ChevronLeft,
-  Layout,
-  Star,
-  Book,
-  X,
-  Edit3,
-  Image as ImageIcon,
-  Video as VideoIcon,
-  Bold,
-  Italic,
-  AlignLeft,
-  AlignCenter,
-  List,
-  Eye,
-  Zap,
-  Coffee,
-  BrainCircuit,
-  BatteryWarning,
-  PartyPopper
-} from 'lucide-react';
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Idea Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#efe2c8;--card:rgba(255,255,255,.78);--ink:#201d15;--soft:#5e5849;--line:rgba(32,29,21,.14);--acc:#16533f;--acc2:#0f3b2d;--danger:#aa392d}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:radial-gradient(circle at 20% 18%,#fbf4e2 0,#efdfbf 45%,#e5d2ab 100%);min-height:100vh}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(to right,rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,.03) 1px,transparent 1px);background-size:30px 30px}
+    .hidden{display:none!important}
+    .screen{min-height:100vh;display:grid;place-items:center;padding:18px;position:relative;z-index:2}
+    .card{width:min(520px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:0 20px 40px rgba(18,24,22,.16);backdrop-filter:blur(8px)}
+    h1,h2{margin:0;font-family:"Noto Serif SC",serif}
+    .tip{color:var(--soft);line-height:1.7;font-size:14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .in,.tx,select{width:100%;border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.9);border-radius:10px;padding:10px 12px;font:inherit}
+    .tx{min-height:90px;resize:vertical}
+    .in:focus,.tx:focus,select:focus{outline:none;border-color:#2b7159;box-shadow:0 0 0 3px rgba(22,83,63,.16)}
+    .btn{border:0;border-radius:10px;padding:10px 12px;font:600 14px/1 inherit;cursor:pointer}
+    .pri{background:var(--acc);color:#fff}.pri:hover{background:var(--acc2)}
+    .soft{background:rgba(255,255,255,.85);border:1px solid rgba(0,0,0,.16)}
+    .danger{background:var(--danger);color:#fff}
+    .err{min-height:18px;color:var(--danger);font-size:13px}
+    .app{height:100vh;display:grid;grid-template-columns:260px 1fr;gap:12px;padding:12px;position:relative;z-index:2}
+    .side,.main{border:1px solid var(--line);background:var(--card);border-radius:16px;backdrop-filter:blur(8px);box-shadow:0 16px 28px rgba(18,24,22,.13)}
+    .side{padding:12px;display:flex;flex-direction:column;min-height:0}
+    .plist,.ilist{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:7px}
+    .item{display:grid;grid-template-columns:1fr auto;gap:6px;border:1px solid transparent;border-radius:10px;background:rgba(255,255,255,.65)}
+    .item.act{border-color:rgba(22,83,63,.5);background:rgba(219,238,229,.75)}
+    .open{border:0;background:transparent;text-align:left;padding:9px 10px;cursor:pointer;color:inherit}
+    .open small{display:block;color:var(--soft);font-size:12px}
+    .icon{width:28px;height:28px;border:0;background:rgba(255,255,255,.8);border-radius:8px;cursor:pointer;align-self:center;margin-right:4px}
+    .main{padding:12px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
+    .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px dashed var(--line);padding-bottom:10px}
+    .sub{margin:6px 0 0;color:var(--soft);font-size:13px}
+    .work{display:grid;grid-template-columns:330px 1fr;gap:10px;min-height:0}
+    .panel{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.7);min-height:0;display:flex;flex-direction:column}
+    .ph{padding:10px;border-bottom:1px dashed var(--line);font-size:14px;font-weight:700}
+    .body{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:0}
+    .status{font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid transparent}
+    .todo{background:#fff2d7;border-color:#e8c590;color:#88560f}.doing{background:#d9efe8;border-color:#99d0bf;color:#0f4f42}.done{background:#dff0d8;border-color:#a8cf9f;color:#1d4120}.parked{background:#eee7f7;border-color:#c8b9de;color:#574d68}
+    .tag{font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(22,83,63,.1);color:#13503d}
+    .edit{display:grid;grid-template-rows:auto auto auto 1fr auto auto;gap:8px;min-height:0}
+    .title{font-size:22px;font-family:"Noto Serif SC",serif}
+    .meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .tool{display:flex;gap:6px;flex-wrap:wrap;padding:6px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.9)}
+    .tb{border:0;border-radius:8px;height:32px;min-width:32px;padding:0 8px;background:#eaf0ec;cursor:pointer;font-weight:700}
+    #ed{border:1px solid var(--line);border-radius:10px;padding:12px;min-height:220px;line-height:1.8;background:rgba(255,255,255,.95);outline:none;overflow:auto}
+    #ed:focus{border-color:#2b7159;box-shadow:0 0 0 3px rgba(22,83,63,.16)}
+    #ed:empty:before{content:"像飞书文档一样，写下你的灵感、拆解和行动计划";color:#948d77}
+    #ed h2,#ed h3{font-family:"Noto Serif SC",serif}
+    .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .save{font-size:12px;color:var(--soft)}
+    @media (max-width:980px){.app{grid-template-columns:1fr;height:auto;min-height:100vh}.work{grid-template-columns:1fr}.meta{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <section id="lock" class="screen">
+    <article class="card">
+      <h1>Idea Vault</h1>
+      <p class="tip">输入密钥后进入你的项目灵感库。可按项目组织，像飞书文档一样做富文本记录，并自动保存到本地。</p>
+      <form id="lf" class="row">
+        <input id="pw" class="in" type="password" placeholder="输入密钥" autocomplete="current-password">
+        <button id="go" class="btn pri" type="submit">解锁</button>
+      </form>
+      <p id="e" class="err"></p>
+      <p class="tip">提示：这是前端口令锁，适合个人轻量保护；真正机密建议放私有仓库。</p>
+    </article>
+  </section>
 
-const App = () => {
-  // --- Utility Functions ---
-  const formatDate = (date) => {
-    const d = new Date(date);
-    const month = '' + (d.getMonth() + 1);
-    const day = '' + d.getDate();
-    const year = d.getFullYear();
-    return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
-  };
-
-  const getDayName = (dateStr) => {
-    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return days[new Date(dateStr).getDay()];
-  };
-
-  const todayStr = formatDate(new Date());
-
-  // --- Constants for Status ---
-  const statusOptions = [
-    { id: 'focus', emoji: "🔥", label: "全神贯注", color: "bg-red-100 text-red-600 border-red-200" },
-    { id: 'calm', emoji: "🌿", label: "内心平静", color: "bg-green-100 text-green-600 border-green-200" },
-    { id: 'happy', emoji: "✨", label: "心情愉悦", color: "bg-yellow-100 text-yellow-600 border-yellow-200" },
-    { id: 'tired', emoji: "💤", label: "需要休息", color: "bg-slate-100 text-slate-500 border-slate-200" },
-    { id: 'anxious', emoji: "🤯", label: "稍微焦虑", color: "bg-purple-100 text-purple-600 border-purple-200" },
-    { id: 'busy', emoji: "⚡️", label: "忙碌充实", color: "bg-blue-100 text-blue-600 border-blue-200" },
-  ];
-
-  // --- State Management ---
-  const [tasks, setTasks] = useState([
-    { id: 1, text: "晨间阅读 30 分钟", time: "07:00", category: "self-growth", completed: true, date: todayStr },
-    { id: 2, text: "深度工作：项目策划", time: "09:00", category: "work", completed: false, date: todayStr },
-    { id: 3, text: "健身房腿部训练", time: "18:00", category: "health", completed: false, date: todayStr },
-  ]);
-  
-  const [diaries, setDiaries] = useState({
-      [todayStr]: "今天也是充满秩序的一天..."
-  });
-
-  // State for daily statuses
-  const [dayStatuses, setDayStatuses] = useState({
-      [todayStr]: statusOptions[0] 
-  });
-
-  const [activeTab, setActiveTab] = useState('daily');
-  const [newTask, setNewTask] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("work");
-  const [stickers, setStickers] = useState([]); 
-  const [showStickerPicker, setShowStickerPicker] = useState(false);
-  const [showStatusPicker, setShowStatusPicker] = useState(false);
-  const [calendarViewDate, setCalendarViewDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
-
-  // --- Helpers ---
-  const categories = {
-    work: { label: "工作", color: "bg-blue-100 text-blue-600 border-blue-200" },
-    study: { label: "学习", color: "bg-purple-100 text-purple-600 border-purple-200" },
-    health: { label: "健康", color: "bg-green-100 text-green-600 border-green-200" },
-    life: { label: "生活", color: "bg-orange-100 text-orange-600 border-orange-200" },
-    "self-growth": { label: "提升", color: "bg-pink-100 text-pink-600 border-pink-200" },
-  };
-
-  const stickerOptions = ["🌟", "🔥", "💧", "💻", "📚", "🧸", "☕", "🎵", "✅", "💯", "🌸", "🥑"];
-
-  const todaysTasks = tasks.filter(t => t.date === todayStr);
-  const progress = todaysTasks.length > 0 
-    ? Math.round((todaysTasks.filter(t => t.completed).length / todaysTasks.length) * 100) 
-    : 0;
-
-  // --- Handlers ---
-  const addTask = (targetDate = todayStr) => {
-    if (!newTask.trim()) return;
-    const newTaskObj = {
-      id: Date.now(),
-      text: newTask,
-      time: "待定",
-      category: selectedCategory,
-      completed: false,
-      date: targetDate
-    };
-    setTasks([...tasks, newTaskObj]);
-    setNewTask("");
-  };
-
-  const toggleTask = (id) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
-
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(t => t.id !== id));
-  };
-
-  const updateStatus = (date, statusObj) => {
-      setDayStatuses(prev => ({ ...prev, [date]: statusObj }));
-      setShowStatusPicker(false);
-  };
-
-  const addSticker = (emoji) => {
-    const newSticker = {
-      id: Date.now(),
-      emoji: emoji,
-      top: Math.random() * 80 + 10 + '%',
-      left: Math.random() * 80 + 10 + '%',
-      rotation: Math.random() * 30 - 15 + 'deg'
-    };
-    setStickers([...stickers, newSticker]);
-    setShowStickerPicker(false);
-  };
-  const removeSticker = (id) => setStickers(stickers.filter(s => s.id !== id));
-
-  // --- Components ---
-
-  const Sidebar = () => (
-    <div className="hidden md:flex flex-col w-20 bg-white border-r border-slate-200 items-center py-8 gap-8 h-full z-20 shadow-sm transition-all">
-      <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">
-        J.
+  <div id="app" class="app hidden">
+    <aside class="side">
+      <div class="row" style="justify-content:space-between;align-items:end">
+        <h2 style="font-size:24px">灵感库</h2>
+        <small style="color:var(--soft)">Projects</small>
       </div>
-      <nav className="flex flex-col gap-6">
-        <button onClick={() => setActiveTab('daily')} className={`p-3 rounded-xl transition-all ${activeTab === 'daily' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`} title="今日视图">
-          <Layout size={24} />
-        </button>
-        <button onClick={() => setActiveTab('diary')} className={`p-3 rounded-xl transition-all ${activeTab === 'diary' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`} title="富文本日记">
-          <Book size={24} />
-        </button>
-        <button onClick={() => setActiveTab('calendar')} className={`p-3 rounded-xl transition-all ${activeTab === 'calendar' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`} title="日历目录">
-          <CalendarIcon size={24} />
-        </button>
-        <button className="p-3 rounded-xl text-slate-400 hover:bg-slate-50 transition-all">
-          <BarChart3 size={24} />
-        </button>
-      </nav>
-      <div className="mt-auto">
-        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-          <Smile size={20} />
+      <div class="row" style="margin:10px 0 8px">
+        <button id="ap" class="btn pri" type="button">+ 项目</button>
+        <button id="cp" class="btn soft" type="button">改密钥</button>
+        <button id="lo" class="btn soft" type="button">退出</button>
+      </div>
+      <div id="pl" class="plist"></div>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <div>
+          <h1 id="pt" style="font-size:32px"></h1>
+          <p id="ps" class="sub"></p>
         </div>
-      </div>
-    </div>
-  );
-
-  const TaskCard = ({ task, readOnly = false }) => (
-    <div className={`group flex items-center gap-4 p-4 bg-white rounded-2xl border transition-all duration-300 ${task.completed ? 'border-slate-100 opacity-60 bg-slate-50' : 'border-white shadow-sm hover:shadow-md hover:-translate-y-1'}`}>
-      <button 
-        onClick={() => !readOnly && toggleTask(task.id)}
-        disabled={readOnly}
-        className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-            task.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 text-transparent hover:border-indigo-400'
-        } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
-      >
-        <CheckCircle2 size={14} />
-      </button>
-      
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs px-2 py-0.5 rounded-full border ${categories[task.category].color}`}>
-            {categories[task.category].label}
-          </span>
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <Clock size={10} /> {task.time}
-          </span>
+        <div class="row">
+          <button id="ai" class="btn pri" type="button">+ Idea</button>
+          <input id="q" class="in" style="width:190px" placeholder="搜索">
         </div>
-        <p className={`font-medium text-slate-700 ${task.completed ? 'line-through text-slate-400' : ''}`}>
-          {task.text}
-        </p>
-      </div>
-
-      {!readOnly && (
-        <button 
-            onClick={() => deleteTask(task.id)}
-            className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity p-2"
-        >
-            <Trash2 size={16} />
-        </button>
-      )}
-    </div>
-  );
-
-  const StatusSelector = ({ date }) => {
-      const currentStatus = dayStatuses[date] || { emoji: "😶", label: "设置状态", color: "bg-slate-100 text-slate-500 border-slate-200 border-dashed" };
-      
-      return (
-          <div className="relative">
-              <button 
-                onClick={() => setShowStatusPicker(!showStatusPicker)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:scale-105 ${currentStatus.color}`}
-              >
-                  <span className="text-lg">{currentStatus.emoji}</span>
-                  <span className="text-sm font-bold">{currentStatus.label}</span>
-              </button>
-
-              {showStatusPicker && (
-                  <div className="absolute top-12 left-0 bg-white p-3 rounded-2xl shadow-xl border border-slate-100 z-50 w-48 animate-in fade-in zoom-in duration-200">
-                      <div className="text-xs font-bold text-slate-400 mb-2 px-2">今日状态是...</div>
-                      <div className="space-y-1">
-                          {statusOptions.map(option => (
-                              <button
-                                key={option.id}
-                                onClick={() => updateStatus(date, option)}
-                                className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-colors text-left"
-                              >
-                                  <span className="text-xl">{option.emoji}</span>
-                                  <span className="text-sm text-slate-700">{option.label}</span>
-                              </button>
-                          ))}
-                      </div>
-                  </div>
-              )}
+      </header>
+      <section class="work">
+        <section class="panel">
+          <div id="ic" class="ph">记录</div>
+          <div id="il" class="ilist body"></div>
+        </section>
+        <section class="panel">
+          <div class="ph">编辑</div>
+          <div id="emp" class="body">当前项目还没有记录，点击 “+ Idea” 创建第一条。</div>
+          <div id="ew" class="body edit hidden">
+            <input id="ti" class="in title" placeholder="想法标题">
+            <div class="meta">
+              <label>状态<select id="st"><option value="todo">待开始</option><option value="doing">进行中</option><option value="done">已完成</option><option value="parked">暂停中</option></select></label>
+              <label>标签（逗号）<input id="tg" class="in" placeholder="产品, 技术"></label>
+              <label>截止日<input id="du" class="in" type="date"></label>
+            </div>
+            <div id="tb" class="tool">
+              <button class="tb" data-c="bold" type="button">B</button><button class="tb" data-c="italic" type="button">I</button><button class="tb" data-c="underline" type="button">U</button>
+              <button class="tb" data-c="h2" type="button">H2</button><button class="tb" data-c="h3" type="button">H3</button>
+              <button class="tb" data-c="insertUnorderedList" type="button">• 列表</button><button class="tb" data-c="insertOrderedList" type="button">1. 列表</button>
+              <button class="tb" data-c="blockquote" type="button">引用</button><button class="tb" data-c="createLink" type="button">链接</button><button class="tb" data-c="removeFormat" type="button">清除</button>
+            </div>
+            <div id="ed" contenteditable="true"></div>
+            <textarea id="ac" class="tx" placeholder="下一步行动（每行一条）"></textarea>
+            <div class="foot"><span id="sv" class="save">等待编辑...</span><button id="di" class="btn danger" type="button">删除这条</button></div>
           </div>
-      );
-  };
+        </section>
+      </section>
+    </main>
+  </div>
 
-  const DiaryEditor = () => {
-    const editorRef = useRef(null);
-    const [wordCount, setWordCount] = useState(0);
-    const fileInputRef = useRef(null);
-    const videoInputRef = useRef(null);
-
-    useEffect(() => {
-        if (editorRef.current) {
-            editorRef.current.innerHTML = diaries[todayStr] || "";
-        }
-    }, []);
-
-    const handleInput = () => {
-        if (editorRef.current) {
-            const content = editorRef.current.innerHTML;
-            setDiaries(prev => ({ ...prev, [todayStr]: content }));
-            setWordCount(editorRef.current.innerText.length);
-        }
-    };
-
-    const execCommand = (command, value = null) => {
-        document.execCommand(command, false, value);
-        if (editorRef.current) editorRef.current.focus();
-    };
-
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const imgHtml = `<img src="${event.target.result}" style="max-width: 100%; border-radius: 12px; margin: 10px 0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);" />`;
-                execCommand('insertHTML', imgHtml);
-            };
-            reader.readAsDataURL(file);
-        }
-        e.target.value = null;
-    };
-
-    const handleVideoUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const videoElement = document.createElement('video');
-            videoElement.preload = 'metadata';
-            videoElement.onloadedmetadata = function() {
-                window.URL.revokeObjectURL(videoElement.src);
-                if (videoElement.duration > 120) {
-                    alert("⚠️ 视频过长！请上传2分钟（120秒）以内的视频。");
-                } else {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const videoHtml = `
-                            <div contenteditable="false" style="margin: 10px 0;">
-                                <video controls src="${event.target.result}" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></video>
-                            </div><br/>
-                        `;
-                        execCommand('insertHTML', videoHtml);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-            videoElement.src = URL.createObjectURL(file);
-        }
-        e.target.value = null;
-    };
-
-    return (
-        <div className="flex-1 p-8 h-full overflow-y-auto no-scrollbar bg-[#F8FAFC]">
-            <div className="max-w-3xl mx-auto h-full flex flex-col">
-                <header className="mb-6 flex justify-between items-end">
-                    <div>
-                        <div className="flex items-center gap-3 text-slate-400 mb-2">
-                            <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-xs font-bold">Today</span>
-                            <span className="text-sm">{todayStr}</span>
-                        </div>
-                        <h1 className="text-3xl font-bold text-slate-800">今日随笔</h1>
-                    </div>
-                    {dayStatuses[todayStr] && (
-                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border opacity-80 ${dayStatuses[todayStr].color}`}>
-                            <span className="text-base">{dayStatuses[todayStr].emoji}</span>
-                            <span className="text-xs font-bold">{dayStatuses[todayStr].label}</span>
-                        </div>
-                    )}
-                </header>
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex-1 flex flex-col overflow-hidden">
-                    <div className="border-b border-slate-100 p-3 flex items-center gap-2 flex-wrap bg-slate-50/50">
-                        <button onClick={() => execCommand('bold')} className="p-2 hover:bg-slate-200 rounded text-slate-600"><Bold size={18}/></button>
-                        <button onClick={() => execCommand('italic')} className="p-2 hover:bg-slate-200 rounded text-slate-600"><Italic size={18}/></button>
-                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                        <button onClick={() => execCommand('justifyLeft')} className="p-2 hover:bg-slate-200 rounded text-slate-600"><AlignLeft size={18}/></button>
-                        <button onClick={() => execCommand('justifyCenter')} className="p-2 hover:bg-slate-200 rounded text-slate-600"><AlignCenter size={18}/></button>
-                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                        <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded text-slate-600 flex items-center gap-2 transition-colors"><ImageIcon size={18}/> <span className="text-xs font-medium">图片</span></button>
-                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                        <button onClick={() => videoInputRef.current?.click()} className="p-2 hover:bg-pink-50 hover:text-pink-600 rounded text-slate-600 flex items-center gap-2 transition-colors"><VideoIcon size={18}/> <span className="text-xs font-medium">视频(Max 2min)</span></button>
-                        <input type="file" accept="video/*" ref={videoInputRef} onChange={handleVideoUpload} className="hidden" />
-                    </div>
-                    <div className="flex-1 p-8 overflow-y-auto focus:outline-none prose prose-slate max-w-none prose-img:rounded-xl prose-p:my-2" contentEditable ref={editorRef} onInput={handleInput} suppressContentEditableWarning={true} style={{ minHeight: '300px' }}></div>
-                    <div className="p-3 border-t border-slate-100 text-right text-xs text-slate-400 bg-slate-50/30">{wordCount} 字 | 自动保存中...</div>
-                </div>
-            </div>
-        </div>
-    );
-  };
-
-  const CalendarView = () => {
-    const year = calendarViewDate.getFullYear();
-    const month = calendarViewDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
-    const days = [];
-    for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
-    for (let i = 1; i <= daysInMonth; i++) days.push(i);
-
-    return (
-        <div className="flex-1 p-8 h-full overflow-y-auto">
-            <div className="max-w-4xl mx-auto">
-                <header className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800">日历目录</h1>
-                        <p className="text-slate-400 text-sm mt-1">回顾过去，规划未来。</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => setCalendarViewDate(new Date(year, month - 1, 1))} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-600"><ChevronLeft/></button>
-                        <span className="text-xl font-bold text-slate-700 w-32 text-center pt-1">{year}年 {month + 1}月</span>
-                        <button onClick={() => setCalendarViewDate(new Date(year, month + 1, 1))} className="p-2 hover:bg-white rounded-xl transition-colors text-slate-600"><ChevronRight/></button>
-                    </div>
-                </header>
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                    <div className="grid grid-cols-7 mb-4 text-center text-slate-400 font-medium text-sm">
-                        {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d} className="py-2">{d}</div>)}
-                    </div>
-                    <div className="grid grid-cols-7 gap-2">
-                        {days.map((day, idx) => {
-                            if (!day) return <div key={idx} className="aspect-square"></div>;
-                            const dateStr = [year, (month + 1).toString().padStart(2, '0'), day.toString().padStart(2, '0')].join('-');
-                            const isToday = dateStr === todayStr;
-                            const hasStatus = dayStatuses[dateStr];
-
-                            return (
-                                <button key={idx} onClick={() => setSelectedDate(dateStr)} className={`aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all group ${isToday ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-indigo-50 text-slate-700 bg-slate-50'}`}>
-                                    <span className="text-lg font-bold">{day}</span>
-                                    {isToday && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">今</span>}
-                                    
-                                    {hasStatus && !isToday && (
-                                        <span className="absolute bottom-1 right-1 text-[10px]" title={hasStatus.label}>{hasStatus.emoji}</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-  };
-
-  const HorizontalTimeline = ({ tasks }) => {
-    const hours = Array.from({ length: 18 }, (_, i) => i + 6);
-    return (
-        <div className="mt-6 border-t border-slate-100 pt-6 animate-in slide-in-from-top-4 duration-300">
-            <h3 className="text-slate-700 font-bold mb-4 flex items-center gap-2">
-                <Clock size={18} className="text-indigo-500"/> 当日时间流
-            </h3>
-            <div className="overflow-x-auto pb-4 custom-scrollbar">
-                <div className="flex relative min-w-max px-4 pb-2">
-                    <div className="absolute top-7 left-0 right-0 h-0.5 bg-slate-200 z-0"></div>
-                    {hours.map(hour => {
-                        const hourTasks = tasks.filter(t => parseInt(t.time.split(':')[0]) === hour);
-                        const hasTask = hourTasks.length > 0;
-                        return (
-                            <div key={hour} className="relative z-10 w-32 flex flex-col items-center group flex-shrink-0">
-                                <div className={`w-3 h-3 rounded-full border-2 ${hasTask ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-slate-300'} mb-2 transition-colors z-20`}></div>
-                                <span className="text-xs font-mono text-slate-400 mb-2">{hour}:00</span>
-                                <div className="space-y-2 w-full px-1 min-h-[40px]">
-                                    {hourTasks.map(t => (
-                                        <div key={t.id} className={`text-[10px] p-2 rounded-lg border leading-tight ${categories[t.category].color.replace('text', 'bg-opacity-10 text')} ${categories[t.category].color.replace('bg-', 'border-').split(' ')[0]} shadow-sm hover:scale-105 transition-transform`}>
-                                            <div className="font-bold truncate" title={t.text}>{t.text}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-    );
-  };
-
-  const DayDetailModal = () => {
-    if (!selectedDate) return null;
-    const isFuture = selectedDate > todayStr;
-    const isPast = selectedDate < todayStr;
-    const dateTasks = tasks.filter(t => t.date === selectedDate);
-    const diaryContent = diaries[selectedDate] || "";
-    const [showTimeline, setShowTimeline] = useState(false);
-    
-    // Get status for this specific date
-    const dateStatus = dayStatuses[selectedDate];
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className={`p-6 text-white flex justify-between items-start ${isFuture ? 'bg-blue-500' : isPast ? 'bg-orange-400' : 'bg-indigo-600'}`}>
-                    <div>
-                        <div className="flex items-center gap-2 opacity-80 mb-1"><CalendarIcon size={16}/><span className="text-sm font-medium">{isFuture ? "未来规划" : isPast ? "时光胶囊" : "今日专注"}</span></div>
-                        <div className="flex items-end gap-3">
-                            <h2 className="text-3xl font-bold">{selectedDate} <span className="text-lg font-normal opacity-80">{getDayName(selectedDate)}</span></h2>
-                            
-                            {dateStatus && (
-                                <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2 mb-1 animate-in slide-in-from-left-4">
-                                    <span className="text-lg">{dateStatus.emoji}</span>
-                                    <span className="text-sm font-bold">{dateStatus.label}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => setShowTimeline(!showTimeline)} className={`p-2 rounded-full transition-colors flex items-center gap-2 px-3 ${showTimeline ? 'bg-white text-indigo-600' : 'bg-white/20 hover:bg-white/30 text-white'}`}>
-                            <Clock size={20} /> <span className="text-sm font-bold">{showTimeline ? '隐藏时间轴' : '查看时间轴'}</span>
-                        </button>
-                        <button onClick={() => setSelectedDate(null)} className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"><X size={20} /></button>
-                    </div>
-                </div>
-                
-                <div className="p-6 overflow-y-auto custom-scrollbar">
-                    {showTimeline && <HorizontalTimeline tasks={dateTasks} />}
-                    <div className="mb-8 mt-4">
-                        <h3 className="text-slate-700 font-bold mb-4 flex items-center gap-2"><Layout size={18} className="text-indigo-500"/>{isPast ? "当日完成情况" : "计划清单"}</h3>
-                        {(selectedDate === todayStr || isFuture) && (
-                            <div className="flex gap-2 mb-4">
-                                <input type="text" placeholder="添加此日计划..." className="flex-1 bg-slate-50 border-none rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-100" value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(selectedDate)}/>
-                                <button onClick={() => addTask(selectedDate)} className="bg-indigo-100 text-indigo-600 p-2 rounded-xl hover:bg-indigo-200"><Plus size={20} /></button>
-                            </div>
-                        )}
-                        <div className="space-y-2">
-                            {dateTasks.length > 0 ? dateTasks.map(task => <TaskCard key={task.id} task={task} readOnly={isPast} />) : <div className="text-center py-6 text-slate-300 bg-slate-50 rounded-2xl border border-dashed border-slate-200">无记录</div>}
-                        </div>
-                    </div>
-                    {!isFuture && (
-                        <div>
-                            <h3 className="text-slate-700 font-bold mb-4 flex items-center gap-2"><Book size={18} className="text-orange-500"/>{isPast ? "当日日记" : "今日随笔 (请在日记页面编辑)"}</h3>
-                            <div className="prose prose-slate max-w-none bg-orange-50/50 p-4 rounded-2xl border border-orange-100" dangerouslySetInnerHTML={{ __html: diaryContent || "<span class='text-slate-400'>没有日记内容...</span>" }}></div>
-                            {selectedDate === todayStr && <button onClick={() => { setSelectedDate(null); setActiveTab('diary'); }} className="mt-2 text-indigo-600 text-sm font-medium hover:underline">去编辑今日日记 &rarr;</button>}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-  };
-
-  return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans selection:bg-indigo-100 overflow-hidden relative">
-      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#E2E8F0 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-      <Sidebar />
-      <div className="flex-1 flex h-full relative z-10 overflow-hidden">
-        {activeTab === 'daily' && (
-            <main className="flex-1 flex flex-col md:flex-row h-full w-full">
-                <div className="flex-1 p-4 md:p-8 overflow-y-auto no-scrollbar">
-                    <header className="mb-8 flex justify-between items-center">
-                        <div><h1 className="text-2xl font-bold text-slate-800 tracking-tight">今日视图 ({todayStr})</h1><p className="text-slate-400 text-sm mt-1">"秩序带来自由。"</p></div>
-                        <div className="flex items-center gap-3">
-                             <StatusSelector date={todayStr} />
-                             <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="bg-white p-2 rounded-full shadow-sm hover:scale-110 transition-transform text-indigo-500"><Sticker size={20} /></button>
-                        </div>
-                    </header>
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-6 relative overflow-hidden group">
-                        <div className="flex justify-between items-end mb-2 relative z-10">
-                            <div><h2 className="text-3xl font-bold text-slate-800">{progress}%</h2><p className="text-slate-500 text-sm font-medium">今日秩序值</p></div>
-                            <div className="text-right"><p className="text-indigo-600 font-bold">{todaysTasks.filter(t => t.completed).length}/{todaysTasks.length}</p><p className="text-xs text-slate-400">已完成</p></div>
-                        </div>
-                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden relative z-10"><div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div></div>
-                    </div>
-                    <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 mb-8 flex items-center gap-2 focus-within:ring-2 focus-within:ring-indigo-100 transition-shadow">
-                        <div className="p-2"><div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300"><Plus size={18} /></div></div>
-                        <input type="text" placeholder="输入今日任务..." className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-300 h-10" value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(todayStr)}/>
-                        <div className="flex items-center gap-1 pr-2">
-                            <select className="text-xs bg-slate-50 text-slate-500 border-none rounded-lg py-1 px-2 cursor-pointer outline-none hover:bg-slate-100" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-                                {Object.keys(categories).map(key => <option key={key} value={key}>{categories[key].label}</option>)}
-                            </select>
-                            <button onClick={() => addTask(todayStr)} className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition-colors"><ChevronRight size={16} /></button>
-                        </div>
-                    </div>
-                    <div className="space-y-3 pb-20">
-                        {todaysTasks.map(task => <TaskCard key={task.id} task={task} />)}
-                        {todaysTasks.length === 0 && <div className="text-center py-12 text-slate-300"><p>今日暂无任务，享受当下 ✨</p></div>}
-                    </div>
-                </div>
-                
-                {/* RESTORED: Right Sidebar with Vertical Timeline */}
-                <div className="w-96 p-8 hidden lg:block border-l border-slate-200 bg-white/50 backdrop-blur-sm">
-                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 h-full overflow-y-auto">
-                        <div className="flex items-center justify-between mb-6"><h3 className="font-bold text-slate-700 flex items-center gap-2"><CalendarIcon size={18} className="text-indigo-500"/> 时间轴</h3><span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-md">Today</span></div>
-                        <div className="space-y-4 relative">
-                            {[7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map(hour => {
-                                const t = todaysTasks.find(task => parseInt(task.time.split(':')[0]) === hour);
-                                return <div key={hour} className="flex gap-4 min-h-[50px] text-sm"><span className="w-10 text-slate-400 text-right">{hour}:00</span><div className="flex-1 border-t border-slate-100 relative pt-1">{t && <div className={`p-1 px-2 rounded bg-indigo-50 text-indigo-600 text-xs`}>{t.text}</div>}</div></div>
-                            })}
-                        </div>
-                    </div>
-                </div>
-            </main>
-        )}
-
-        {activeTab === 'diary' && <DiaryEditor />}
-
-        {activeTab === 'calendar' && <CalendarView />}
-      </div>
-      <DayDetailModal />
-      {showStickerPicker && (
-          <div className="absolute top-20 left-20 z-50 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-              <div className="grid grid-cols-4 gap-2">{stickerOptions.map(emoji => <button key={emoji} onClick={() => addSticker(emoji)} className="text-2xl hover:bg-slate-50 p-2 rounded-xl transition-colors">{emoji}</button>)}</div>
-          </div>
-      )}
-      {stickers.map(sticker => (
-          <div key={sticker.id} className="absolute cursor-move select-none text-4xl hover:scale-125 transition-transform z-40 group" style={{ top: sticker.top, left: sticker.left, transform: `rotate(${sticker.rotation})` }} draggable="true">
-            {sticker.emoji}
-            <button onClick={() => removeSticker(sticker.id)} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">×</button>
-          </div>
-      ))}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 flex justify-around z-50">
-        <button onClick={() => setActiveTab('daily')} className={activeTab === 'daily' ? 'text-indigo-600' : 'text-slate-400'}><Layout/></button>
-        <button onClick={() => setActiveTab('diary')} className={activeTab === 'diary' ? 'text-indigo-600' : 'text-slate-400'}><Book/></button>
-        <button onClick={() => setActiveTab('calendar')} className={activeTab === 'calendar' ? 'text-indigo-600' : 'text-slate-400'}><CalendarIcon/></button>
-      </div>
-    </div>
-  );
-};
-
-export default App;
+  <script>
+    (() => {
+      const K = "idea_vault_state_v1", HK = "idea_vault_pass_hash_v1", SK = "idea_vault_session_v1";
+      const DEFH = "a9cbf2b7b5579f7a199987e33d3cb88a0e2d065342d8e55499b6e3add7affbb7";
+      const S = { todo:["待开始","todo"], doing:["进行中","doing"], done:["已完成","done"], parked:["暂停中","parked"] };
+      const $ = (x) => document.getElementById(x);
+      const E = ["lock","lf","pw","go","e","app","ap","cp","lo","pl","pt","ps","ai","q","ic","il","emp","ew","ti","st","tg","du","tb","ed","ac","sv","di"]
+        .reduce((o,k)=>(o[k]=$(k),o),{});
+      let st = load(), q = "", t = 0;
+      const now = () => new Date().toISOString();
+      const rid = (p) => p + "_" + Math.random().toString(36).slice(2,9);
+      const esc = (s) => String(s || "").replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+      const strip = (h) => { const d = document.createElement("div"); d.innerHTML = h || ""; return (d.textContent || "").replace(/\s+/g," ").trim(); };
+      const hsh = async (s) => { const b = new TextEncoder().encode(s); const d = await crypto.subtle.digest("SHA-256", b); return Array.from(new Uint8Array(d)).map(n=>n.toString(16).padStart(2,"0")).join(""); };
+      const nidea = (t0) => ({ id: rid("i"), t: t0 || "新想法", s: "todo", tg: [], du: "", a: "", b: "<p>记录你的目标、思路与落地路径。</p>", c: now(), u: now() });
+      const nproj = (n) => { const i = nidea("欢迎使用 Idea Vault"); i.s = "doing"; i.tg = ["说明"]; i.b = "<h2>使用方式</h2><p>1. 左侧建项目。<br>2. 每条 Idea 对应一个主题。<br>3. 在这里用富文本持续更新。</p>"; return { id: rid("p"), n: n || "默认项目", c: now(), u: now(), i: [i], a: i.id }; };
+      function norm(x){ if(!x||!Array.isArray(x.p)||!x.p.length){const p=nproj("默认项目");return{p:[p],a:p.id}}; const p=x.p.map((p0,k)=>{const i=(Array.isArray(p0.i)?p0.i:[]).map((it,j)=>({id:it.id||rid("i"),t:(it.t||`想法 ${j+1}`),s:S[it.s]?it.s:"todo",tg:Array.isArray(it.tg)?it.tg.filter(Boolean).slice(0,8):[],du:it.du||"",a:it.a||"",b:it.b||"<p></p>",c:it.c||now(),u:it.u||it.c||now()})); return {id:p0.id||rid("p"),n:(p0.n||`项目 ${k+1}`),c:p0.c||now(),u:p0.u||p0.c||now(),i,a:(p0.a&&i.some(x=>x.id===p0.a)?p0.a:i[0]?.id||null)};}); return {p,a:(x.a&&p.some(v=>v.id===x.a)?x.a:p[0].id)}; }
+      function load(){ try{ return norm(JSON.parse(localStorage.getItem(K)||"")); }catch{ const p=nproj("默认项目"); return {p:[p],a:p.id}; } }
+      function save(msg){ localStorage.setItem(K, JSON.stringify(st)); E.sv.textContent = msg || "自动保存中..."; clearTimeout(t); t = setTimeout(() => E.sv.textContent = "已自动保存", 520); }
+      const cp = () => st.p.find(x=>x.id===st.a) || st.p[0];
+      const ci = () => { const p=cp(); return p?.i.find(x=>x.id===p.a) || null; };
+      const fmt = (d) => { try { return new Date(d).toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}); } catch { return "-"; } };
+      function render(){
+        if(!st.p.length){ const p=nproj("默认项目"); st.p=[p]; st.a=p.id; save(); }
+        if(!st.p.some(x=>x.id===st.a)) st.a=st.p[0].id;
+        st.p.forEach(p=>{ if(!p.i.length) p.a = null; else if(!p.i.some(x=>x.id===p.a)) p.a = p.i[0].id; });
+        const p = cp(), i = ci();
+        E.pt.textContent = p.n; E.ps.textContent = `创建 ${fmt(p.c)} · 更新 ${fmt(p.u)}`;
+        E.pl.innerHTML = st.p.map(x => `<article class="item ${x.id===st.a?"act":""}"><button class="open" data-op="${x.id}">${esc(x.n)}<small>${x.i.length} 条记录</small></button><button class="icon" data-delp="${x.id}" title="删项目">×</button></article>`).join("");
+        const list = [...p.i].sort((a,b)=>new Date(b.u)-new Date(a.u)).filter(x => !q || [x.t,x.a,strip(x.b),x.tg.join(" ")].join(" ").toLowerCase().includes(q));
+        E.ic.textContent = `记录 ${list.length}/${p.i.length}`;
+        E.il.innerHTML = list.length ? list.map(x => { const m=S[x.s]||S.todo; return `<article class="item ${x.id===p.a?"act":""}"><button class="open" data-oi="${x.id}"><b>${esc(x.t)}</b><small>${esc(strip(x.b).slice(0,56)||"（暂无内容）")}</small><div class="row" style="margin-top:6px;gap:6px"><span class="status ${m[1]}">${m[0]}</span>${x.du?`<small>截止 ${esc(x.du)}</small>`:""}</div>${(x.tg||[]).slice(0,2).map(t=>`<span class="tag">#${esc(t)}</span>`).join("")}</button><button class="icon" data-deli="${x.id}" title="删记录">×</button></article>`; }).join("") : '<div class="tip" style="padding:8px">没有匹配记录</div>';
+        if(!i){ E.emp.classList.remove("hidden"); E.ew.classList.add("hidden"); E.sv.textContent = "当前项目暂无记录"; return; }
+        E.emp.classList.add("hidden"); E.ew.classList.remove("hidden");
+        E.ti.value = i.t; E.st.value = S[i.s]?i.s:"todo"; E.tg.value = (i.tg||[]).join(", "); E.du.value = i.du || ""; E.ac.value = i.a || ""; E.ed.innerHTML = i.b || "<p></p>";
+      }
+      const upd = (fn,msg,rr=true) => { const p=cp(), i=ci(); if(!p||!i) return; fn(p,i); i.u=now(); p.u=now(); save(msg); if(rr) render(); };
+      async function unlock(ev){ ev.preventDefault(); const pw = E.pw.value.trim(); if(!pw){ E.e.textContent = "请输入密钥"; return; } E.go.disabled = true; E.go.textContent = "验证中..."; E.e.textContent = ""; try{ if(await hsh(pw) !== (localStorage.getItem(HK) || DEFH)){ E.e.textContent = "密钥错误"; return; } sessionStorage.setItem(SK,"1"); E.lock.classList.add("hidden"); E.app.classList.remove("hidden"); render(); } catch { E.e.textContent = "当前浏览器不支持加密验证"; } finally { E.go.disabled = false; E.go.textContent = "解锁"; } }
+      async function chg(){ const o = prompt("输入当前密钥："); if(o===null) return; if(await hsh(o.trim()) !== (localStorage.getItem(HK)||DEFH)){ alert("当前密钥错误"); return; } const n = prompt("输入新密钥（至少6位）："); if(n===null) return; const c = n.trim(); if(c.length<6){ alert("长度至少6位"); return; } const n2 = prompt("再次输入新密钥："); if(n2===null || n2.trim()!==c){ alert("两次不一致"); return; } localStorage.setItem(HK, await hsh(c)); alert("密钥已更新"); }
+      E.lf.addEventListener("submit", unlock);
+      E.ap.addEventListener("click", () => { const n = prompt("项目名：","新项目"); if(n===null) return; const p = nproj(n.trim() || `项目 ${st.p.length+1}`); st.p.unshift(p); st.a = p.id; save("已创建项目"); render(); });
+      E.pl.addEventListener("click", (e) => { const op = e.target.closest("[data-op]"); const dp = e.target.closest("[data-delp]"); if(op){ st.a = op.dataset.op; save("已切换项目"); render(); return; } if(dp){ if(st.p.length<=1){ alert("至少保留一个项目"); return; } const id = dp.dataset.delp, p = st.p.find(x=>x.id===id); if(!p || !confirm(`删除项目「${p.n}」？`)) return; st.p = st.p.filter(x=>x.id!==id); if(st.a===id) st.a = st.p[0].id; save("已删除项目"); render(); } });
+      E.ai.addEventListener("click", () => { const p = cp(); const i = nidea(`新想法 ${p.i.length+1}`); p.i.unshift(i); p.a = i.id; p.u = now(); save("已创建记录"); render(); });
+      E.il.addEventListener("click", (e) => { const oi = e.target.closest("[data-oi]"), di = e.target.closest("[data-deli]"), p = cp(); if(oi){ p.a = oi.dataset.oi; save("已切换记录"); render(); return; } if(di){ const id = di.dataset.deli, i = p.i.find(x=>x.id===id); if(!i || !confirm(`删除「${i.t}」？`)) return; p.i = p.i.filter(x=>x.id!==id); if(p.a===id) p.a = p.i[0]?.id || null; p.u = now(); save("已删除记录"); render(); } });
+      E.q.addEventListener("input", () => { q = E.q.value.trim().toLowerCase(); render(); });
+      E.ti.addEventListener("input", () => upd((p,i)=>{ i.t = E.ti.value.trim() || "未命名想法"; p.a = i.id; }));
+      E.st.addEventListener("change", () => upd((p,i)=>{ i.s = S[E.st.value]?E.st.value:"todo"; p.a = i.id; }));
+      E.tg.addEventListener("change", () => upd((p,i)=>{ i.tg = E.tg.value.split(",").map(x=>x.trim()).filter(Boolean).slice(0,8); }));
+      E.du.addEventListener("change", () => upd((p,i)=>{ i.du = E.du.value; }));
+      E.ac.addEventListener("input", () => upd((p,i)=>{ i.a = E.ac.value; }, null, false));
+      E.ed.addEventListener("input", () => upd((p,i)=>{ i.b = E.ed.innerHTML; }, null, false));
+      E.ac.addEventListener("blur", () => render());
+      E.ed.addEventListener("blur", () => render());
+      E.di.addEventListener("click", () => { const p=cp(), i=ci(); if(!i) return; if(!confirm(`删除「${i.t}」？`)) return; p.i = p.i.filter(x=>x.id!==i.id); p.a = p.i[0]?.id || null; p.u = now(); save("已删除记录"); render(); });
+      E.tb.addEventListener("click", (e) => { const b = e.target.closest("[data-c]"); if(!b) return; const c = b.dataset.c; E.ed.focus(); if(c==="h2") document.execCommand("formatBlock", false, "h2"); else if(c==="h3") document.execCommand("formatBlock", false, "h3"); else if(c==="blockquote") document.execCommand("formatBlock", false, "blockquote"); else if(c==="createLink"){ const l = prompt("输入链接：","https://"); if(l) document.execCommand("createLink", false, l.trim()); } else document.execCommand(c, false, null); });
+      E.cp.addEventListener("click", () => chg().catch(() => alert("修改失败")));
+      E.lo.addEventListener("click", () => { sessionStorage.removeItem(SK); E.app.classList.add("hidden"); E.lock.classList.remove("hidden"); E.pw.value=""; E.e.textContent=""; });
+      if(sessionStorage.getItem(SK)==="1"){ E.lock.classList.add("hidden"); E.app.classList.remove("hidden"); render(); }
+    })();
+  </script>
+</body>
+</html>
