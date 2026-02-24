@@ -136,7 +136,7 @@
       const $ = (x) => document.getElementById(x);
       const E = ["lock","lf","pw","go","e","app","ap","cp","lo","pl","pt","ps","ai","q","ic","il","emp","ew","ti","st","tg","du","tb","ed","ac","sv","di"]
         .reduce((o,k)=>(o[k]=$(k),o),{});
-      let st = load(), q = "", t = 0;
+      let st = null, q = "", t = 0;
       const now = () => new Date().toISOString();
       const rid = (p) => p + "_" + Math.random().toString(36).slice(2,9);
       const esc = (s) => String(s || "").replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
@@ -150,6 +150,7 @@
       const cp = () => st.p.find(x=>x.id===st.a) || st.p[0];
       const ci = () => { const p=cp(); return p?.i.find(x=>x.id===p.a) || null; };
       const fmt = (d) => { try { return new Date(d).toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}); } catch { return "-"; } };
+      st = load();
       function render(){
         if(!st.p.length){ const p=nproj("默认项目"); st.p=[p]; st.a=p.id; save(); }
         if(!st.p.some(x=>x.id===st.a)) st.a=st.p[0].id;
