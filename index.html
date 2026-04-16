@@ -1,193 +1,284 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Idea Vault</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600&display=swap" rel="stylesheet">
-  <style>
-    :root{--bg:#efe2c8;--card:rgba(255,255,255,.78);--ink:#201d15;--soft:#5e5849;--line:rgba(32,29,21,.14);--acc:#16533f;--acc2:#0f3b2d;--danger:#aa392d}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:radial-gradient(circle at 20% 18%,#fbf4e2 0,#efdfbf 45%,#e5d2ab 100%);min-height:100vh}
-    body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(to right,rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,.03) 1px,transparent 1px);background-size:30px 30px}
-    .hidden{display:none!important}
-    .screen{min-height:100vh;display:grid;place-items:center;padding:18px;position:relative;z-index:2}
-    .card{width:min(520px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:0 20px 40px rgba(18,24,22,.16);backdrop-filter:blur(8px)}
-    h1,h2{margin:0;font-family:"Noto Serif SC",serif}
-    .tip{color:var(--soft);line-height:1.7;font-size:14px}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    .in,.tx,select{width:100%;border:1px solid rgba(0,0,0,.2);background:rgba(255,255,255,.9);border-radius:10px;padding:10px 12px;font:inherit}
-    .tx{min-height:90px;resize:vertical}
-    .in:focus,.tx:focus,select:focus{outline:none;border-color:#2b7159;box-shadow:0 0 0 3px rgba(22,83,63,.16)}
-    .btn{border:0;border-radius:10px;padding:10px 12px;font:600 14px/1 inherit;cursor:pointer}
-    .pri{background:var(--acc);color:#fff}.pri:hover{background:var(--acc2)}
-    .soft{background:rgba(255,255,255,.85);border:1px solid rgba(0,0,0,.16)}
-    .danger{background:var(--danger);color:#fff}
-    .err{min-height:18px;color:var(--danger);font-size:13px}
-    .app{height:100vh;display:grid;grid-template-columns:260px 1fr;gap:12px;padding:12px;position:relative;z-index:2}
-    .side,.main{border:1px solid var(--line);background:var(--card);border-radius:16px;backdrop-filter:blur(8px);box-shadow:0 16px 28px rgba(18,24,22,.13)}
-    .side{padding:12px;display:flex;flex-direction:column;min-height:0}
-    .plist,.ilist{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:7px}
-    .item{display:grid;grid-template-columns:1fr auto;gap:6px;border:1px solid transparent;border-radius:10px;background:rgba(255,255,255,.65)}
-    .item.act{border-color:rgba(22,83,63,.5);background:rgba(219,238,229,.75)}
-    .open{border:0;background:transparent;text-align:left;padding:9px 10px;cursor:pointer;color:inherit}
-    .open small{display:block;color:var(--soft);font-size:12px}
-    .icon{width:28px;height:28px;border:0;background:rgba(255,255,255,.8);border-radius:8px;cursor:pointer;align-self:center;margin-right:4px}
-    .main{padding:12px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
-    .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px dashed var(--line);padding-bottom:10px}
-    .sub{margin:6px 0 0;color:var(--soft);font-size:13px}
-    .work{display:grid;grid-template-columns:330px 1fr;gap:10px;min-height:0}
-    .panel{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.7);min-height:0;display:flex;flex-direction:column}
-    .ph{padding:10px;border-bottom:1px dashed var(--line);font-size:14px;font-weight:700}
-    .body{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:0}
-    .status{font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid transparent}
-    .todo{background:#fff2d7;border-color:#e8c590;color:#88560f}.doing{background:#d9efe8;border-color:#99d0bf;color:#0f4f42}.done{background:#dff0d8;border-color:#a8cf9f;color:#1d4120}.parked{background:#eee7f7;border-color:#c8b9de;color:#574d68}
-    .tag{font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(22,83,63,.1);color:#13503d}
-    .edit{display:grid;grid-template-rows:auto auto auto 1fr auto auto;gap:8px;min-height:0}
-    .title{font-size:22px;font-family:"Noto Serif SC",serif}
-    .meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-    .tool{display:flex;gap:6px;flex-wrap:wrap;padding:6px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.9)}
-    .tb{border:0;border-radius:8px;height:32px;min-width:32px;padding:0 8px;background:#eaf0ec;cursor:pointer;font-weight:700}
-    #ed{border:1px solid var(--line);border-radius:10px;padding:12px;min-height:220px;line-height:1.8;background:rgba(255,255,255,.95);outline:none;overflow:auto}
-    #ed:focus{border-color:#2b7159;box-shadow:0 0 0 3px rgba(22,83,63,.16)}
-    #ed:empty:before{content:"像飞书文档一样，写下你的灵感、拆解和行动计划";color:#948d77}
-    #ed h2,#ed h3{font-family:"Noto Serif SC",serif}
-    .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-    .save{font-size:12px;color:var(--soft)}
-    @media (max-width:980px){.app{grid-template-columns:1fr;height:auto;min-height:100vh}.work{grid-template-columns:1fr}.meta{grid-template-columns:1fr}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 文本转 Word 净化器</title>
+    <!-- 引入 Tailwind CSS 用于快速构建美观的界面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 marked.js 用于解析 Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 引入 highlight.js 样式，用于稍微美化一下预览区的代码 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    
+    <style>
+        /* * 这里定义的是"预览区"的样式，它不仅仅是为了网页上好看，
+         * 更重要的是，在复制到剪贴板时，我们会把这些基础样式内联进去，
+         * 以便 Word 能更好地识别排版。
+         */
+        .preview-content {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333333;
+        }
+        .preview-content h1, .preview-content h2, .preview-content h3 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: bold;
+            color: #111111;
+        }
+        .preview-content h1 { font-size: 24px; }
+        .preview-content h2 { font-size: 20px; border-bottom: 1px solid #eaeaea; padding-bottom: 0.3em; }
+        .preview-content h3 { font-size: 18px; }
+        .preview-content p {
+            margin-top: 0;
+            margin-bottom: 1em;
+        }
+        .preview-content ul, .preview-content ol {
+            margin-bottom: 1em;
+            padding-left: 2em;
+        }
+        .preview-content li {
+            margin-bottom: 0.25em;
+        }
+        .preview-content pre {
+            background-color: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow: auto;
+            font-family: Consolas, "Courier New", monospace;
+            border: 1px solid #e1e4e8;
+            margin-bottom: 1em;
+        }
+        .preview-content code {
+            font-family: Consolas, "Courier New", monospace;
+            background-color: #rgba(27,31,35,0.05);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+        }
+        .preview-content blockquote {
+            padding: 0 1em;
+            color: #6a737d;
+            border-left: 0.25em solid #dfe2e5;
+            margin: 0 0 1em 0;
+        }
+        .preview-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1em;
+        }
+        .preview-content table th, .preview-content table td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+        }
+        .preview-content table th {
+            font-weight: bold;
+            background-color: #f6f8fa;
+        }
+    </style>
 </head>
-<body>
-  <section id="lock" class="screen">
-    <article class="card">
-      <h1>Idea Vault</h1>
-      <p class="tip">输入密钥后进入你的项目灵感库。可按项目组织，像飞书文档一样做富文本记录，并自动保存到本地。</p>
-      <form id="lf" class="row">
-        <input id="pw" class="in" type="password" placeholder="输入密钥" autocomplete="current-password">
-        <button id="go" class="btn pri" type="submit">解锁</button>
-      </form>
-      <p id="e" class="err"></p>
-      <p class="tip">提示：这是前端口令锁，适合个人轻量保护；真正机密建议放私有仓库。</p>
-    </article>
-  </section>
+<body class="bg-gray-50 h-screen flex flex-col font-sans">
 
-  <div id="app" class="app hidden">
-    <aside class="side">
-      <div class="row" style="justify-content:space-between;align-items:end">
-        <h2 style="font-size:24px">灵感库</h2>
-        <small style="color:var(--soft)">Projects</small>
-      </div>
-      <div class="row" style="margin:10px 0 8px">
-        <button id="ap" class="btn pri" type="button">+ 项目</button>
-        <button id="cp" class="btn soft" type="button">改密钥</button>
-        <button id="lo" class="btn soft" type="button">退出</button>
-      </div>
-      <div id="pl" class="plist"></div>
-    </aside>
-
-    <main class="main">
-      <header class="top">
+    <!-- 顶部导航 -->
+    <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center z-10 relative">
         <div>
-          <h1 id="pt" style="font-size:32px"></h1>
-          <p id="ps" class="sub"></p>
+            <h1 class="text-2xl font-bold text-blue-600">AI 文本净化器</h1>
+            <p class="text-sm text-gray-500 mt-1">解决 AI 对话直接粘贴到 Word 排版错乱的问题</p>
         </div>
-        <div class="row">
-          <button id="ai" class="btn pri" type="button">+ Idea</button>
-          <input id="q" class="in" style="width:190px" placeholder="搜索">
-        </div>
-      </header>
-      <section class="work">
-        <section class="panel">
-          <div id="ic" class="ph">记录</div>
-          <div id="il" class="ilist body"></div>
-        </section>
-        <section class="panel">
-          <div class="ph">编辑</div>
-          <div id="emp" class="body">当前项目还没有记录，点击 “+ Idea” 创建第一条。</div>
-          <div id="ew" class="body edit hidden">
-            <input id="ti" class="in title" placeholder="想法标题">
-            <div class="meta">
-              <label>状态<select id="st"><option value="todo">待开始</option><option value="doing">进行中</option><option value="done">已完成</option><option value="parked">暂停中</option></select></label>
-              <label>标签（逗号）<input id="tg" class="in" placeholder="产品, 技术"></label>
-              <label>截止日<input id="du" class="in" type="date"></label>
-            </div>
-            <div id="tb" class="tool">
-              <button class="tb" data-c="bold" type="button">B</button><button class="tb" data-c="italic" type="button">I</button><button class="tb" data-c="underline" type="button">U</button>
-              <button class="tb" data-c="h2" type="button">H2</button><button class="tb" data-c="h3" type="button">H3</button>
-              <button class="tb" data-c="insertUnorderedList" type="button">• 列表</button><button class="tb" data-c="insertOrderedList" type="button">1. 列表</button>
-              <button class="tb" data-c="blockquote" type="button">引用</button><button class="tb" data-c="createLink" type="button">链接</button><button class="tb" data-c="removeFormat" type="button">清除</button>
-            </div>
-            <div id="ed" contenteditable="true"></div>
-            <textarea id="ac" class="tx" placeholder="下一步行动（每行一条）"></textarea>
-            <div class="foot"><span id="sv" class="save">等待编辑...</span><button id="di" class="btn danger" type="button">删除这条</button></div>
-          </div>
-        </section>
-      </section>
-    </main>
-  </div>
+        <button id="copyBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded shadow transition duration-200 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            一键复制为 Word 友好格式
+        </button>
+    </header>
 
-  <script>
-    (() => {
-      const K = "idea_vault_state_v1", HK = "idea_vault_pass_hash_v1", SK = "idea_vault_session_v1";
-      const DEFH = "a9cbf2b7b5579f7a199987e33d3cb88a0e2d065342d8e55499b6e3add7affbb7";
-      const S = { todo:["待开始","todo"], doing:["进行中","doing"], done:["已完成","done"], parked:["暂停中","parked"] };
-      const $ = (x) => document.getElementById(x);
-      const E = ["lock","lf","pw","go","e","app","ap","cp","lo","pl","pt","ps","ai","q","ic","il","emp","ew","ti","st","tg","du","tb","ed","ac","sv","di"]
-        .reduce((o,k)=>(o[k]=$(k),o),{});
-      let st = null, q = "", t = 0;
-      const now = () => new Date().toISOString();
-      const rid = (p) => p + "_" + Math.random().toString(36).slice(2,9);
-      const esc = (s) => String(s || "").replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
-      const strip = (h) => { const d = document.createElement("div"); d.innerHTML = h || ""; return (d.textContent || "").replace(/\s+/g," ").trim(); };
-      const hsh = async (s) => { const b = new TextEncoder().encode(s); const d = await crypto.subtle.digest("SHA-256", b); return Array.from(new Uint8Array(d)).map(n=>n.toString(16).padStart(2,"0")).join(""); };
-      const nidea = (t0) => ({ id: rid("i"), t: t0 || "新想法", s: "todo", tg: [], du: "", a: "", b: "<p>记录你的目标、思路与落地路径。</p>", c: now(), u: now() });
-      const nproj = (n) => { const i = nidea("欢迎使用 Idea Vault"); i.s = "doing"; i.tg = ["说明"]; i.b = "<h2>使用方式</h2><p>1. 左侧建项目。<br>2. 每条 Idea 对应一个主题。<br>3. 在这里用富文本持续更新。</p>"; return { id: rid("p"), n: n || "默认项目", c: now(), u: now(), i: [i], a: i.id }; };
-      function norm(x){ if(!x||!Array.isArray(x.p)||!x.p.length){const p=nproj("默认项目");return{p:[p],a:p.id}}; const p=x.p.map((p0,k)=>{const i=(Array.isArray(p0.i)?p0.i:[]).map((it,j)=>({id:it.id||rid("i"),t:(it.t||`想法 ${j+1}`),s:S[it.s]?it.s:"todo",tg:Array.isArray(it.tg)?it.tg.filter(Boolean).slice(0,8):[],du:it.du||"",a:it.a||"",b:it.b||"<p></p>",c:it.c||now(),u:it.u||it.c||now()})); return {id:p0.id||rid("p"),n:(p0.n||`项目 ${k+1}`),c:p0.c||now(),u:p0.u||p0.c||now(),i,a:(p0.a&&i.some(x=>x.id===p0.a)?p0.a:i[0]?.id||null)};}); return {p,a:(x.a&&p.some(v=>v.id===x.a)?x.a:p[0].id)}; }
-      function load(){ try{ return norm(JSON.parse(localStorage.getItem(K)||"")); }catch{ const p=nproj("默认项目"); return {p:[p],a:p.id}; } }
-      function save(msg){ localStorage.setItem(K, JSON.stringify(st)); E.sv.textContent = msg || "自动保存中..."; clearTimeout(t); t = setTimeout(() => E.sv.textContent = "已自动保存", 520); }
-      const cp = () => st.p.find(x=>x.id===st.a) || st.p[0];
-      const ci = () => { const p=cp(); return p?.i.find(x=>x.id===p.a) || null; };
-      const fmt = (d) => { try { return new Date(d).toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}); } catch { return "-"; } };
-      st = load();
-      function render(){
-        if(!st.p.length){ const p=nproj("默认项目"); st.p=[p]; st.a=p.id; save(); }
-        if(!st.p.some(x=>x.id===st.a)) st.a=st.p[0].id;
-        st.p.forEach(p=>{ if(!p.i.length) p.a = null; else if(!p.i.some(x=>x.id===p.a)) p.a = p.i[0].id; });
-        const p = cp(), i = ci();
-        E.pt.textContent = p.n; E.ps.textContent = `创建 ${fmt(p.c)} · 更新 ${fmt(p.u)}`;
-        E.pl.innerHTML = st.p.map(x => `<article class="item ${x.id===st.a?"act":""}"><button class="open" data-op="${x.id}">${esc(x.n)}<small>${x.i.length} 条记录</small></button><button class="icon" data-delp="${x.id}" title="删项目">×</button></article>`).join("");
-        const list = [...p.i].sort((a,b)=>new Date(b.u)-new Date(a.u)).filter(x => !q || [x.t,x.a,strip(x.b),x.tg.join(" ")].join(" ").toLowerCase().includes(q));
-        E.ic.textContent = `记录 ${list.length}/${p.i.length}`;
-        E.il.innerHTML = list.length ? list.map(x => { const m=S[x.s]||S.todo; return `<article class="item ${x.id===p.a?"act":""}"><button class="open" data-oi="${x.id}"><b>${esc(x.t)}</b><small>${esc(strip(x.b).slice(0,56)||"（暂无内容）")}</small><div class="row" style="margin-top:6px;gap:6px"><span class="status ${m[1]}">${m[0]}</span>${x.du?`<small>截止 ${esc(x.du)}</small>`:""}</div>${(x.tg||[]).slice(0,2).map(t=>`<span class="tag">#${esc(t)}</span>`).join("")}</button><button class="icon" data-deli="${x.id}" title="删记录">×</button></article>`; }).join("") : '<div class="tip" style="padding:8px">没有匹配记录</div>';
-        if(!i){ E.emp.classList.remove("hidden"); E.ew.classList.add("hidden"); E.sv.textContent = "当前项目暂无记录"; return; }
-        E.emp.classList.add("hidden"); E.ew.classList.remove("hidden");
-        E.ti.value = i.t; E.st.value = S[i.s]?i.s:"todo"; E.tg.value = (i.tg||[]).join(", "); E.du.value = i.du || ""; E.ac.value = i.a || ""; E.ed.innerHTML = i.b || "<p></p>";
-      }
-      const upd = (fn,msg,rr=true) => { const p=cp(), i=ci(); if(!p||!i) return; fn(p,i); i.u=now(); p.u=now(); save(msg); if(rr) render(); };
-      async function unlock(ev){ ev.preventDefault(); const pw = E.pw.value.trim(); if(!pw){ E.e.textContent = "请输入密钥"; return; } E.go.disabled = true; E.go.textContent = "验证中..."; E.e.textContent = ""; try{ if(await hsh(pw) !== (localStorage.getItem(HK) || DEFH)){ E.e.textContent = "密钥错误"; return; } sessionStorage.setItem(SK,"1"); E.lock.classList.add("hidden"); E.app.classList.remove("hidden"); render(); } catch { E.e.textContent = "当前浏览器不支持加密验证"; } finally { E.go.disabled = false; E.go.textContent = "解锁"; } }
-      async function chg(){ const o = prompt("输入当前密钥："); if(o===null) return; if(await hsh(o.trim()) !== (localStorage.getItem(HK)||DEFH)){ alert("当前密钥错误"); return; } const n = prompt("输入新密钥（至少6位）："); if(n===null) return; const c = n.trim(); if(c.length<6){ alert("长度至少6位"); return; } const n2 = prompt("再次输入新密钥："); if(n2===null || n2.trim()!==c){ alert("两次不一致"); return; } localStorage.setItem(HK, await hsh(c)); alert("密钥已更新"); }
-      E.lf.addEventListener("submit", unlock);
-      E.ap.addEventListener("click", () => { const n = prompt("项目名：","新项目"); if(n===null) return; const p = nproj(n.trim() || `项目 ${st.p.length+1}`); st.p.unshift(p); st.a = p.id; save("已创建项目"); render(); });
-      E.pl.addEventListener("click", (e) => { const op = e.target.closest("[data-op]"); const dp = e.target.closest("[data-delp]"); if(op){ st.a = op.dataset.op; save("已切换项目"); render(); return; } if(dp){ if(st.p.length<=1){ alert("至少保留一个项目"); return; } const id = dp.dataset.delp, p = st.p.find(x=>x.id===id); if(!p || !confirm(`删除项目「${p.n}」？`)) return; st.p = st.p.filter(x=>x.id!==id); if(st.a===id) st.a = st.p[0].id; save("已删除项目"); render(); } });
-      E.ai.addEventListener("click", () => { const p = cp(); const i = nidea(`新想法 ${p.i.length+1}`); p.i.unshift(i); p.a = i.id; p.u = now(); save("已创建记录"); render(); });
-      E.il.addEventListener("click", (e) => { const oi = e.target.closest("[data-oi]"), di = e.target.closest("[data-deli]"), p = cp(); if(oi){ p.a = oi.dataset.oi; save("已切换记录"); render(); return; } if(di){ const id = di.dataset.deli, i = p.i.find(x=>x.id===id); if(!i || !confirm(`删除「${i.t}」？`)) return; p.i = p.i.filter(x=>x.id!==id); if(p.a===id) p.a = p.i[0]?.id || null; p.u = now(); save("已删除记录"); render(); } });
-      E.q.addEventListener("input", () => { q = E.q.value.trim().toLowerCase(); render(); });
-      E.ti.addEventListener("input", () => upd((p,i)=>{ i.t = E.ti.value.trim() || "未命名想法"; p.a = i.id; }));
-      E.st.addEventListener("change", () => upd((p,i)=>{ i.s = S[E.st.value]?E.st.value:"todo"; p.a = i.id; }));
-      E.tg.addEventListener("change", () => upd((p,i)=>{ i.tg = E.tg.value.split(",").map(x=>x.trim()).filter(Boolean).slice(0,8); }));
-      E.du.addEventListener("change", () => upd((p,i)=>{ i.du = E.du.value; }));
-      E.ac.addEventListener("input", () => upd((p,i)=>{ i.a = E.ac.value; }, null, false));
-      E.ed.addEventListener("input", () => upd((p,i)=>{ i.b = E.ed.innerHTML; }, null, false));
-      E.ac.addEventListener("blur", () => render());
-      E.ed.addEventListener("blur", () => render());
-      E.di.addEventListener("click", () => { const p=cp(), i=ci(); if(!i) return; if(!confirm(`删除「${i.t}」？`)) return; p.i = p.i.filter(x=>x.id!==i.id); p.a = p.i[0]?.id || null; p.u = now(); save("已删除记录"); render(); });
-      E.tb.addEventListener("click", (e) => { const b = e.target.closest("[data-c]"); if(!b) return; const c = b.dataset.c; E.ed.focus(); if(c==="h2") document.execCommand("formatBlock", false, "h2"); else if(c==="h3") document.execCommand("formatBlock", false, "h3"); else if(c==="blockquote") document.execCommand("formatBlock", false, "blockquote"); else if(c==="createLink"){ const l = prompt("输入链接：","https://"); if(l) document.execCommand("createLink", false, l.trim()); } else document.execCommand(c, false, null); });
-      E.cp.addEventListener("click", () => chg().catch(() => alert("修改失败")));
-      E.lo.addEventListener("click", () => { sessionStorage.removeItem(SK); E.app.classList.add("hidden"); E.lock.classList.remove("hidden"); E.pw.value=""; E.e.textContent=""; });
-      if(sessionStorage.getItem(SK)==="1"){ E.lock.classList.add("hidden"); E.app.classList.remove("hidden"); render(); }
-    })();
-  </script>
+    <!-- 状态提示 Toast -->
+    <div id="toast" class="fixed top-20 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg transform transition-transform duration-300 translate-y-[-150%] opacity-0 z-50">
+        复制成功！现在去 Word 中按 Ctrl+V 粘贴吧。
+    </div>
+
+    <!-- 主体区域：左右分栏 -->
+    <main class="flex-1 flex overflow-hidden p-6 gap-6">
+        
+        <!-- 左侧：输入区 -->
+        <div class="flex-1 flex flex-col bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 font-semibold text-gray-700">
+                1. 在此粘贴 AI 的原始文本 (支持 Markdown)
+            </div>
+            <textarea id="sourceText" class="flex-1 w-full p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="请从 ChatGPT、Gemini 等网页复制内容，然后粘贴到这里...&#10;&#10;例如：&#10;## 这是一个标题&#10;这是一段**加粗**的文字。"></textarea>
+        </div>
+
+        <!-- 右侧：预览区 -->
+        <div class="flex-1 flex flex-col bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 font-semibold text-gray-700 flex justify-between items-center">
+                <span>2. 转换后的纯净预览</span>
+                <span class="text-xs font-normal text-gray-500 border border-gray-300 rounded px-2 py-1 bg-white">干净 HTML</span>
+            </div>
+            <!-- 这里用于显示解析后的内容 -->
+            <div id="previewArea" class="flex-1 p-6 overflow-y-auto preview-content">
+                <div class="text-gray-400 text-center mt-20 italic">
+                    左侧输入内容后，这里会实时显示预览...
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sourceText = document.getElementById('sourceText');
+            const previewArea = document.getElementById('previewArea');
+            const copyBtn = document.getElementById('copyBtn');
+            const toast = document.getElementById('toast');
+
+            // 配置 marked，使其不要转换换行为 <br>，保持原生段落感，这对 Word 更好
+            marked.setOptions({
+                breaks: false,
+                gfm: true
+            });
+
+            // 监听输入，实时渲染预览
+            sourceText.addEventListener('input', updatePreview);
+
+            function updatePreview() {
+                const text = sourceText.value;
+                if (!text.trim()) {
+                    previewArea.innerHTML = '<div class="text-gray-400 text-center mt-20 italic">左侧输入内容后，这里会实时显示预览...</div>';
+                    return;
+                }
+                
+                // 使用 marked 将 Markdown 转为 HTML
+                const htmlContent = marked.parse(text);
+                previewArea.innerHTML = htmlContent;
+            }
+
+            // 核心逻辑：一键复制为 Word 友好格式
+            copyBtn.addEventListener('click', async () => {
+                const text = sourceText.value;
+                if (!text.trim()) {
+                    showToast('请先在左侧输入内容！', 'error');
+                    return;
+                }
+
+                // 1. 获取干净的 HTML
+                const rawHtml = marked.parse(text);
+
+                // 2. 构造适合 Word 的 HTML 包装。
+                // 关键点：Word 粘贴时依赖内联样式或全局样式来确定排版。
+                // 我们构建一个完整的 HTML 文档结构，注入基础样式，确保黑色背景被剥离，字体大小一致。
+                const wordFriendlyHtml = `
+                    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Export</title>
+                        <style>
+                            /* 注入极简且 Word 友好的基础样式 */
+                            body, div, p { 
+                                font-family: "Microsoft YaHei", "宋体", sans-serif; 
+                                font-size: 11pt; 
+                                line-height: 1.5; 
+                                color: #000000; 
+                                background-color: #ffffff; /* 强行覆盖暗黑模式背景 */
+                            }
+                            h1 { font-size: 18pt; font-weight: bold; margin-top: 18pt; margin-bottom: 6pt; }
+                            h2 { font-size: 16pt; font-weight: bold; margin-top: 16pt; margin-bottom: 4pt; }
+                            h3 { font-size: 14pt; font-weight: bold; margin-top: 14pt; margin-bottom: 4pt; }
+                            p { margin-top: 0; margin-bottom: 10pt; }
+                            ul, ol { margin-top: 0; margin-bottom: 10pt; padding-left: 20pt; }
+                            li { margin-bottom: 2pt; }
+                            
+                            /* 代码块处理，给一个浅灰色背景和边框，Word 可以识别 */
+                            pre { 
+                                background-color: #f6f8fa; 
+                                border: 1px solid #cccccc;
+                                padding: 10pt; 
+                                font-family: "Consolas", monospace; 
+                                font-size: 9pt;
+                            }
+                            code { 
+                                font-family: "Consolas", monospace; 
+                                font-size: 9pt;
+                                background-color: #f6f8fa; 
+                            }
+                            
+                            /* 表格处理 */
+                            table { border-collapse: collapse; width: 100%; margin-bottom: 10pt; }
+                            th, td { border: 1pt solid #000000; padding: 4pt 8pt; }
+                            th { background-color: #f0f0f0; font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        ${rawHtml}
+                    </body>
+                    </html>
+                `;
+
+                try {
+                    // 3. 使用现代 Clipboard API 写入两种格式
+                    // 'text/html' 是给 Word 用的核心格式
+                    // 'text/plain' 是作为后备（如果用户粘贴到不支持富文本的记事本里）
+                    
+                    const htmlBlob = new Blob([wordFriendlyHtml], { type: 'text/html' });
+                    const textBlob = new Blob([text], { type: 'text/plain' });
+
+                    const clipboardItem = new ClipboardItem({
+                        'text/html': htmlBlob,
+                        'text/plain': textBlob
+                    });
+
+                    await navigator.clipboard.write([clipboardItem]);
+                    showToast('复制成功！现在去 Word 中按 Ctrl+V 粘贴吧。', 'success');
+                } catch (err) {
+                    console.error('复制失败:', err);
+                    // 降级方案：如果浏览器不支持 Clipboard API 或权限被拒
+                    fallbackCopyTextToClipboard(wordFriendlyHtml);
+                }
+            });
+
+            // 显示动态提示
+            function showToast(message, type = 'success') {
+                toast.textContent = message;
+                
+                // 根据类型切换颜色
+                if (type === 'error') {
+                    toast.classList.remove('bg-green-500');
+                    toast.classList.add('bg-red-500');
+                } else {
+                    toast.classList.remove('bg-red-500');
+                    toast.classList.add('bg-green-500');
+                }
+
+                toast.classList.remove('translate-y-[-150%]', 'opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-[-150%]', 'opacity-0');
+                }, 3000);
+            }
+
+            // 降级复制方案 (依赖 document.execCommand，虽然老旧但在某些环境下必要)
+            function fallbackCopyTextToClipboard(text) {
+                 const textArea = document.createElement("textarea");
+                 textArea.value = text;
+                 // 避免滚动条跳动
+                 textArea.style.top = "0";
+                 textArea.style.left = "0";
+                 textArea.style.position = "fixed";
+                 document.body.appendChild(textArea);
+                 textArea.focus();
+                 textArea.select();
+
+                 try {
+                     const successful = document.execCommand('copy');
+                     if(successful){
+                         showToast('复制成功！现在去 Word 中按 Ctrl+V 粘贴吧。', 'success');
+                     } else {
+                         showToast('复制失败，可能是浏览器权限限制。', 'error');
+                     }
+                 } catch (err) {
+                     showToast('无法复制，您的浏览器环境不支持此功能。', 'error');
+                 }
+                 document.body.removeChild(textArea);
+             }
+        });
+    </script>
 </body>
 </html>
