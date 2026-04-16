@@ -3,28 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 文本转 Word 净化器</title>
+    <title>AI 文本转 Word 净化器 - 论文专版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        /* 默认预览区样式 */
         .preview-content {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            color: #333333;
+            font-size: 14px; line-height: 1.6; color: #333; padding: 20px;
         }
-        .preview-content h1, .preview-content h2, .preview-content h3 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: bold; color: #111; }
-        .preview-content h1 { font-size: 24px; }
-        .preview-content h2 { font-size: 20px; border-bottom: 1px solid #eaeaea; padding-bottom: 0.3em; }
-        .preview-content h3 { font-size: 18px; }
-        .preview-content p { margin-top: 0; margin-bottom: 1em; }
-        .preview-content ul, .preview-content ol { margin-bottom: 1em; padding-left: 2em; }
-        .preview-content li { margin-bottom: 0.25em; }
-        .preview-content pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; border: 1px solid #e1e4e8; margin-bottom: 1em; }
-        .preview-content code { font-family: Consolas, monospace; background-color: rgba(27,31,35,0.05); padding: 0.2em 0.4em; border-radius: 3px; }
-        .preview-content table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
-        .preview-content table th, .preview-content table td { border: 1px solid #dfe2e5; padding: 6px 13px; }
-        .preview-content table th { font-weight: bold; background-color: #f6f8fa; }
+        /* 当选择论文模式时，预览区也尽量模拟论文的视觉效果 */
+        .preview-content.thesis-mode {
+            font-family: "Times New Roman", "SimSun", "宋体", serif;
+            font-size: 16px; /* 模拟小四 */
+            line-height: 1.5;
+        }
+        .preview-content.thesis-mode p { text-indent: 2em; margin-bottom: 0; }
+        .preview-content.thesis-mode h1 { font-family: "SimHei", "黑体", sans-serif; font-size: 21.3px; /* 模拟三号 */ font-weight: bold; text-align: center; margin-top: 1em; margin-bottom: 1em; text-indent: 0; }
+        .preview-content.thesis-mode h2 { font-family: "SimHei", "黑体", sans-serif; font-size: 20px; /* 模拟小三 */ font-weight: bold; margin-top: 8px; margin-bottom: 8px; text-indent: 0; }
+        .preview-content.thesis-mode h3 { font-family: "SimHei", "黑体", sans-serif; font-size: 18.7px; /* 模拟四号 */ font-weight: bold; margin-top: 4px; margin-bottom: 4px; text-indent: 0; }
+        .preview-content.thesis-mode li { margin-left: 2em; text-indent: 0; }
+        
+        /* 默认通用模式样式 */
+        .preview-content.standard-mode { font-family: -apple-system, sans-serif; }
+        .preview-content.standard-mode h1, .preview-content.standard-mode h2, .preview-content.standard-mode h3 { font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; }
+        .preview-content.standard-mode h1 { font-size: 24px; }
+        .preview-content.standard-mode h2 { font-size: 20px; border-bottom: 1px solid #eee; }
+        .preview-content.standard-mode p { margin-bottom: 1em; }
     </style>
 </head>
 <body class="bg-gray-50 h-screen flex flex-col font-sans">
@@ -32,32 +36,42 @@
     <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center z-10 relative">
         <div>
             <h1 class="text-2xl font-bold text-blue-600">AI 文本净化器</h1>
-            <p class="text-sm text-gray-500 mt-1">解决 AI 对话直接粘贴到 Word 排版错乱的问题</p>
+            <p class="text-sm text-gray-500 mt-1">自动识别 Markdown 层级，完美映射 Word 论文字号与段落格式</p>
         </div>
-        <!-- 增加了 active:scale-95，点击时会有明显的按压动画 -->
-        <button id="copyBtn" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-2 px-6 rounded shadow transition-all duration-150 flex items-center gap-2 cursor-pointer select-none">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-            一键复制为 Word 友好格式
-        </button>
+        
+        <div class="flex items-center gap-4">
+            <!-- 新增：格式模板选择器 -->
+            <div class="flex items-center bg-gray-100 rounded border border-gray-200 p-1">
+                <span class="text-sm text-gray-600 px-2 font-medium">目标排版：</span>
+                <select id="formatTemplate" class="text-sm bg-white border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                    <option value="ncwu">论文格式 (宋体小四/黑体标题)</option>
+                    <option value="standard">通用办公格式 (微软雅黑)</option>
+                </select>
+            </div>
+
+            <button id="copyBtn" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-2 px-6 rounded shadow transition-all duration-150 flex items-center gap-2 cursor-pointer select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                按此格式复制
+            </button>
+        </div>
     </header>
 
-    <!-- 简化了 Toast 的 CSS，改为由 JS 直接控制 display 属性，确保万无一失 -->
     <div id="toast" style="display: none; position: fixed; top: 80px; right: 24px; z-index: 9999; padding: 12px 24px; border-radius: 8px; color: white; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: opacity 0.3s;">
         提示信息
     </div>
 
     <main class="flex-1 flex overflow-hidden p-6 gap-6">
         <div class="flex-1 flex flex-col bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 font-semibold text-gray-700">1. 在此粘贴 AI 的原始文本</div>
-            <textarea id="sourceText" class="flex-1 w-full p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="粘贴内容到这里..."></textarea>
+            <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 font-semibold text-gray-700">1. 在此粘贴 AI 文本 (使用 # 划分标题层级)</div>
+            <textarea id="sourceText" class="flex-1 w-full p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="尝试粘贴以下内容测试效果：&#10;&#10;# 第1章 绪论&#10;&#10;## 1.1 研究背景与意义&#10;&#10;随着人工智能技术的不断发展，自然语言处理大模型在日常办公中扮演着越来越重要的角色。然而，跨平台文本复制经常导致格式错乱...&#10;&#10;### 1.1.1 存在的主要问题&#10;&#10;首先，网页端复杂的 CSS 样式无法被 Word 完全兼容。其次，深色模式会导致粘贴出现黑色背景块..."></textarea>
         </div>
         <div class="flex-1 flex flex-col bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
             <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 font-semibold text-gray-700 flex justify-between items-center">
                 <span>2. 转换后的纯净预览</span>
-                <span class="text-xs font-normal text-gray-500 border border-gray-300 rounded px-2 py-1 bg-white">干净 HTML</span>
             </div>
-            <div id="previewArea" class="flex-1 p-6 overflow-y-auto preview-content">
-                <div class="text-gray-400 text-center mt-20 italic">左侧输入内容后，这里会实时显示预览...</div>
+            <!-- 默认加上 thesis-mode 类名，因为下拉框默认是论文模式 -->
+            <div id="previewArea" class="flex-1 overflow-y-auto preview-content thesis-mode">
+                <div class="text-gray-400 text-center mt-20 italic font-sans" style="text-indent: 0;">左侧输入内容后，这里会实时显示预览...</div>
             </div>
         </div>
     </main>
@@ -67,27 +81,38 @@
             const sourceText = document.getElementById('sourceText');
             const previewArea = document.getElementById('previewArea');
             const copyBtn = document.getElementById('copyBtn');
+            const templateSelect = document.getElementById('formatTemplate');
             const toast = document.getElementById('toast');
             let toastTimer;
 
             marked.setOptions({ breaks: false, gfm: true });
 
-            sourceText.addEventListener('input', () => {
+            // 监听输入，实时渲染
+            sourceText.addEventListener('input', updatePreview);
+            // 监听模板切换，更新预览区样式
+            templateSelect.addEventListener('change', () => {
+                if (templateSelect.value === 'ncwu') {
+                    previewArea.className = 'flex-1 overflow-y-auto preview-content thesis-mode';
+                } else {
+                    previewArea.className = 'flex-1 overflow-y-auto preview-content standard-mode';
+                }
+                updatePreview();
+            });
+
+            function updatePreview() {
                 const text = sourceText.value;
                 if (!text.trim()) {
-                    previewArea.innerHTML = '<div class="text-gray-400 text-center mt-20 italic">左侧输入内容后，这里会实时显示预览...</div>';
+                    previewArea.innerHTML = '<div class="text-gray-400 text-center mt-20 italic font-sans" style="text-indent: 0;">左侧输入内容后，这里会实时显示预览...</div>';
                     return;
                 }
                 previewArea.innerHTML = marked.parse(text);
-            });
+            }
 
-            // 极简版、确保能弹出的提示框函数
             function showToast(message, isError = false) {
                 toast.textContent = message;
-                toast.style.backgroundColor = isError ? '#ef4444' : '#22c55e'; // 红 或 绿
+                toast.style.backgroundColor = isError ? '#ef4444' : '#22c55e';
                 toast.style.display = 'block';
                 toast.style.opacity = '1';
-                
                 clearTimeout(toastTimer);
                 toastTimer = setTimeout(() => {
                     toast.style.opacity = '0';
@@ -96,8 +121,6 @@
             }
 
             copyBtn.addEventListener('click', async () => {
-                console.log("【调试】复制按钮被点击了"); // 你可以在控制台看到这行字
-                
                 const text = sourceText.value;
                 if (!text.trim()) {
                     showToast('请先在左侧输入内容！', true);
@@ -105,44 +128,104 @@
                 }
 
                 const rawHtml = marked.parse(text);
+                const selectedFormat = templateSelect.value;
+                let cssStyles = "";
+
+                // 根据选择的模板，注入严格对应的 Word pt(磅) 样式
+                if (selectedFormat === 'ncwu') {
+                    // 华北水利水电大学格式映射
+                    cssStyles = `
+                        /* 全局与正文：宋体小四 (12pt), 英文 Times New Roman, 1.5倍行距, 首行缩进2字符 (24pt) */
+                        body, p, div { 
+                            font-family: "Times New Roman", "SimSun", "宋体", serif; 
+                            font-size: 12pt; 
+                            line-height: 1.5; 
+                            color: #000000; 
+                            background-color: #ffffff; 
+                            margin-top: 0; 
+                            margin-bottom: 0;
+                        }
+                        p { text-indent: 24pt; }
+                        
+                        /* 一级标题 (章)：三号黑体 (16pt)，居中，约占2行 (用margin模拟) */
+                        h1 { 
+                            font-family: "SimHei", "黑体", sans-serif; 
+                            font-size: 16pt; 
+                            font-weight: bold; 
+                            text-align: center; 
+                            margin-top: 24pt; 
+                            margin-bottom: 24pt; 
+                            text-indent: 0;
+                            color: #000000;
+                        }
+                        
+                        /* 二级标题 (节)：小三号黑体 (15pt)，段前6磅，段后6磅 */
+                        h2 { 
+                            font-family: "SimHei", "黑体", sans-serif; 
+                            font-size: 15pt; 
+                            font-weight: bold; 
+                            margin-top: 6pt; 
+                            margin-bottom: 6pt; 
+                            text-indent: 0;
+                            color: #000000;
+                        }
+                        
+                        /* 三级标题 (条)：四号黑体 (14pt)，段前3磅，段后3磅 */
+                        h3 { 
+                            font-family: "SimHei", "黑体", sans-serif; 
+                            font-size: 14pt; 
+                            font-weight: bold; 
+                            margin-top: 3pt; 
+                            margin-bottom: 3pt; 
+                            text-indent: 0;
+                            color: #000000;
+                        }
+
+                        /* 列表和表格防止被首行缩进影响 */
+                        ul, ol { text-indent: 0; margin-left: 24pt; font-size: 12pt; }
+                        li { text-indent: 0; margin-bottom: 2pt; }
+                        table { border-collapse: collapse; width: 100%; font-size: 12pt; text-indent: 0; }
+                        th, td { border: 1pt solid #000000; padding: 4pt; text-indent: 0; }
+                    `;
+                } else {
+                    // 默认通用办公格式
+                    cssStyles = `
+                        body, p, div, li { font-family: "Microsoft YaHei", sans-serif; font-size: 11pt; color: #000; background-color: #fff; line-height: 1.5; }
+                        h1, h2, h3 { font-weight: bold; color: #000; }
+                        h1 { font-size: 18pt; margin-top: 12pt; margin-bottom: 6pt; }
+                        h2 { font-size: 14pt; margin-top: 10pt; margin-bottom: 4pt; }
+                        p { margin-bottom: 10pt; }
+                        table { border-collapse: collapse; width: 100%; }
+                        th, td { border: 1px solid #000; padding: 5px; }
+                    `;
+                }
                 
-                // 构造 Word 友好的全套 HTML
                 const wordFriendlyHtml = `
                     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
                     <head>
                         <meta charset="utf-8">
-                        <style>
-                            body, p, div, li { font-family: "Microsoft YaHei", sans-serif; font-size: 11pt; color: #000; background-color: #fff; }
-                            h1, h2, h3 { font-weight: bold; color: #000; }
-                            pre { background-color: #f6f8fa; border: 1px solid #ccc; padding: 10px; font-family: Consolas, monospace; }
-                            table { border-collapse: collapse; width: 100%; }
-                            th, td { border: 1px solid #000; padding: 5px; }
-                        </style>
+                        <style>${cssStyles}</style>
                     </head>
                     <body>${rawHtml}</body>
                     </html>
                 `;
 
-                // 方案一：优先尝试现代 Clipboard API
                 try {
                     if (navigator.clipboard && window.ClipboardItem) {
                         const htmlBlob = new Blob([wordFriendlyHtml], { type: 'text/html' });
                         const textBlob = new Blob([text], { type: 'text/plain' });
                         await navigator.clipboard.write([new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })]);
-                        console.log("【调试】方案一 (Clipboard API) 复制成功");
-                        showToast('复制成功！现在去 Word 中按 Ctrl+V 粘贴吧。');
+                        showToast(`复制成功！已应用 [${templateSelect.options[templateSelect.selectedIndex].text}]`);
                         return;
                     }
                 } catch (err) {
-                    console.warn("【调试】方案一失败，准备启动备用方案", err);
+                    console.warn("方案一失败，准备启动备用方案", err);
                 }
 
-                // 方案二：备用原生 DOM 选择复制方案（兼容性极强）
                 try {
-                    console.log("【调试】启动方案二 (execCommand)");
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = wordFriendlyHtml;
-                    tempDiv.style.position = 'fixed'; // 移出视口，但不隐藏 (隐藏无法被复制)
+                    tempDiv.style.position = 'fixed';
                     tempDiv.style.left = '-9999px';
                     document.body.appendChild(tempDiv);
 
@@ -158,16 +241,18 @@
                     document.body.removeChild(tempDiv);
 
                     if (successful) {
-                        console.log("【调试】方案二复制成功");
-                        showToast('复制成功 (备用模式)！现在去 Word 粘贴吧。');
+                        showToast(`复制成功 (备用模式)！已应用格式。`);
                     } else {
                         throw new Error('execCommand 返回 false');
                     }
                 } catch (err) {
-                    console.error("【调试】所有复制方案都失败了", err);
-                    showToast('复制失败，请尝试手动全选右侧文本进行复制', true);
+                    showToast('复制失败，请重试或检查浏览器权限', true);
                 }
             });
+
+            // 页面加载时自动填入示例文本并渲染
+            sourceText.value = sourceText.getAttribute('placeholder');
+            updatePreview();
         });
     </script>
 </body>
